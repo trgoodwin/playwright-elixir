@@ -59,7 +59,7 @@ defmodule Playwright.BrowserType do
   | ------------- | ------ | --------------------------- | ----------- |
   | `ws_endpoint` | param  | `BrowserType.ws_endpoint()` | A browser websocket endpoint to connect to. |
   | `:headers`    | option | `map()`                     | Additional HTTP headers to be sent with websocket connect request |
-  | `:slow_mow`   | option | `integer()`                 | Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on. `(default: 0)` |
+  | `:slow_mo`    | option | `integer()`                 | Slows down Playwright operations by the specified amount of milliseconds. Useful so that you can see what is going on. `(default: 0)` |
   | `:logger`     | option |                             | Logger sink for Playwright logging |
   | `:timeout`    | option | `integer()`                 | Maximum time in milliseconds to wait for the connection to be established. Pass `0` to disable timeout. `(default: 30_000 (30 seconds))` |
   """
