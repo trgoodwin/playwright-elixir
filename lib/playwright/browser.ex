@@ -46,6 +46,12 @@ defmodule Playwright.Browser do
 
   # @spec browser_type(t()) :: BrowserType.t()
   # def browser_type(browser)
+  @spec browser_type(Playwright.Browser.t()) :: {:error, Playwright.Channel.Error.t()} | struct
+  def browser_type(%Browser{name: name, session: session}) do
+    playwright = Channel.find(session, {:guid, "Playwright"})
+    client_guid = get_in(playwright, [Access.key(String.to_atom(name)), Access.key(:guid)])
+    Channel.find(session, {:guid, client_guid})
+  end
 
   @doc """
   Closes the browser.
