@@ -100,8 +100,8 @@ defmodule Playwright.BrowserType do
       when is_atom(client)
       when client in [:chromium] do
     with {:ok, session} <- new_session(Transport.Driver, options),
-          browser_type <- chromium(session),
-          browser <- _connect_over_cdp(browser_type, Map.merge(%{"endpointURL" => endpoint_url}, options)) do
+         browser_type <- chromium(session),
+         browser <- _connect_over_cdp(browser_type, Map.merge(%{"endpointURL" => endpoint_url}, options)) do
       {session, browser}
     end
   end
@@ -117,7 +117,6 @@ defmodule Playwright.BrowserType do
     if browser_context, do: Channel.patch(browser_context.session, {:guid, browser_context.guid}, %{browser: browser})
     browser
   end
-
 
   # @spec executable_path(BrowserType.t()) :: String.t()
   # def executable_path(browser_type)
@@ -173,7 +172,7 @@ defmodule Playwright.BrowserType do
       when client in [:chromium] do
     with {:ok, session} <- new_session(Transport.Driver, options),
          browser_type <- chromium(session),
-         browser <- browser(browser_type) do
+         browser <- browser(browser_type, options) do
       {session, browser}
     end
   end
@@ -227,7 +226,9 @@ defmodule Playwright.BrowserType do
 
   defp playwright(session) do
     case Channel.find(session, {:guid, "Playwright"}) do
-      %Playwright{} = playwright -> playwright
+      %Playwright{} = playwright ->
+        playwright
+
       other ->
         raise("expected to return a `Playwright`, received: #{inspect(other)}")
     end
