@@ -647,6 +647,11 @@ defmodule Playwright.Page do
 
   # ---
 
+  @spec wait_for_function(Page.t(), expression(), any(), options()) :: JSHandle.t()
+  def wait_for_function(%Page{} = owner, expression, arg \\ nil, options \\ %{}) do
+    main_frame(owner) |> Frame.wait_for_function(expression, arg, options)
+  end
+
   @spec wait_for_load_state(t(), binary(), options()) :: Page.t()
   def wait_for_load_state(page, state \\ "load", options \\ %{})
 
