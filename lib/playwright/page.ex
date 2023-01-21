@@ -292,8 +292,22 @@ defmodule Playwright.Page do
 
   def expect_event(page, event, options \\ %{}, trigger \\ nil)
 
-  def expect_event(%Page{} = page, event, options, trigger) do
+  def expect_event(%Page{} = page, event, options, trigger)
+      when event in [
+             :request,
+             "request",
+             :response,
+             "response",
+             :request_finished,
+             "requestFinished",
+             :page,
+             "page"
+           ] do
     context(page) |> BrowserContext.expect_event(event, options, trigger)
+  end
+
+  def expect_event(%Page{session: session} = page, event, options, trigger) do
+    Channel.wait(session, {:guid, page.guid}, event, options, trigger)
   end
 
   # ---
