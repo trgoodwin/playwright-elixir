@@ -16,10 +16,10 @@ defmodule Playwright.Artifact do
   end
 
   def delete(%Artifact{session: session, guid: guid}) do
-    Channel.post(session, {:guid, guid}, :delete) |> IO.inspect()
+    Channel.post(session, {:guid, guid}, :delete)
   end
 
   def failure(%Artifact{session: session, guid: guid}) do
-    Channel.post(session, {:guid, guid}, :failure) |> IO.inspect()
+    Channel.post(session, {:guid, guid}, :failure)
   end
 end
