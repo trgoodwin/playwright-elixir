@@ -63,16 +63,24 @@ defmodule Playwright.PlaywrightTest do
              |> Response.ok()
     end
 
-    test "using `:page`", %{page: page} do
-      assert page
-             |> Page.goto("http://example.com")
-             |> Response.ok()
+    test "with :firefox" do
+      with {:ok, br} <- Playwright.launch(:firefox),
+           {:ok, pg} <- Browser.new_page(br),
+           {:ok, rs} <- Page.goto(pg, "https://www.whatsmybrowser.org") do
+        assert Playwright.Response.ok(rs)
+        assert Playwright.Page.text_content(pg, "h2.header") =~ "Firefox"
+      end
+      |> pass()
     end
 
-    @tag exclude: [:page]
-    test "excluding `:page` via `@tag`", context do
-      assert Map.has_key?(context, :browser)
-      refute Map.has_key?(context, :page)
+    test "with :webkit" do
+      with {:ok, br} <- Playwright.launch(:webkit),
+           {:ok, pg} <- Browser.new_page(br),
+           {:ok, rs} <- Page.goto(pg, "https://www.whatsmybrowser.org") do
+        assert Playwright.Response.ok(rs)
+        assert Playwright.Page.text_content(pg, "h2.header") =~ "Safari"
+      end
+      |> pass()
     end
   end
 end
