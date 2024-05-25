@@ -846,6 +846,8 @@ defmodule Playwright.Frame do
   end
 
   # ---
+  # @spec url(Frame.t()) :: binary()
+  # def url(frame)
 
   # @spec url(Frame.t()) :: binary()
   # def url(frame)
