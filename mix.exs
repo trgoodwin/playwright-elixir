@@ -49,13 +49,14 @@ defmodule Playwright.MixProject do
       {:cowlib, "~> 2.7.0"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
-      {:esbuild, "~> 0.8.1", runtime: Mix.env() == :dev},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.33", only: :dev, runtime: false},
+      {:esbuild, "~> 0.4", runtime: Mix.env() == :dev},
       {:gun, "~> 1.3.3"},
       {:jason, "~> 1.4"},
       {:httpoison, "~> 1.8", only: [:test]},
       {:mix_audit, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:playwright_assets, "1.44.0", only: [:test]},
+      {:nimble_parsec, "~> 1.3.0"},
+      {:playwright_assets, "~> 1.32.0", only: [:test]},
       {:recase, "~> 0.7"},
       {:uuid, "~> 1.1"}
     ]
