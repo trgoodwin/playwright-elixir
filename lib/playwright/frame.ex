@@ -885,8 +885,11 @@ defmodule Playwright.Frame do
   # @spec url(Frame.t()) :: binary()
   # def url(frame)
 
-  # @spec wait_for_function(Frame.t(), expression(), any(), options()) :: JSHandle.t()
-  # def wait_for_function(frame, expression, arg \\ nil, options \\ %{})
+  @spec wait_for_function(Frame.t(), expression(), any(), options()) :: JSHandle.t()
+  def wait_for_function(%Frame{session: session} = frame, expression, arg \\ nil, options \\ %{}) do
+    params = Map.merge(%{expression: expression, arg: serialize(arg)}, options)
+    Channel.post(session, {:guid, frame.guid}, :wait_for_function, params)
+  end
 
   # ---
 
