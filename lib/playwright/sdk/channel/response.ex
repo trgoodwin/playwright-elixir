@@ -73,6 +73,13 @@ defmodule Playwright.SDK.Channel.Response do
     result
   end
 
+  defp parse([browser: %{guid: browser_guid}, defaultContext: %{guid: context_guid}], catalog) do
+    browser = Channel.Catalog.get(catalog, browser_guid)
+    browser_context = Channel.Catalog.get(catalog, context_guid)
+    if browser_context, do: Channel.patch(browser_context.session, {:guid, browser_context.guid}, %{browser: browser})
+    browser
+  end
+
   defp parse([{:binary, value}], _catalog) do
     value
   end
