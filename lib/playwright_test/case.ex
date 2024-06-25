@@ -55,7 +55,7 @@ defmodule PlaywrightTest.Case do
         Application.put_env(:playwright, LaunchOptions, launch_options)
         {:ok, _} = Application.ensure_all_started(:playwright)
 
-        {_session, browser} = setup_browser(runner_options.transport)
+        {_session, browser} = setup_browser(runner_options.transport, runner_options)
         [browser: browser, transport: runner_options.transport]
       end
 
@@ -77,16 +77,14 @@ defmodule PlaywrightTest.Case do
         end
       end
 
-      # ---
-
-      defp setup_browser(transport) do
+      defp setup_browser(transport, transport_options \\ %{}) do
         case transport do
           :driver ->
-            options = Config.launch_options()
+            options = Map.merge(Config.launch_options(), transport_options)
             Playwright.BrowserType.launch(options)
 
           :websocket ->
-            options = Config.connect_options()
+            options = Map.merge(Config.connect_options(), transport_options)
             Playwright.BrowserType.connect(options.ws_endpoint)
         end
       end
