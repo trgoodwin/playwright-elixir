@@ -485,6 +485,54 @@ defmodule Playwright.LocatorTest do
     end
   end
 
+  describe "Locator.get_by_role/3" do
+    test "finds element by role within locator", %{page: page} do
+      Page.set_content(page, "<div><button>Submit</button></div><button>Outside</button>")
+      locator = Page.locator(page, "div")
+      assert locator |> Locator.get_by_role(:button) |> Locator.count() == 1
+    end
+  end
+
+  describe "Locator.get_by_label/3" do
+    test "finds element by label within locator", %{page: page} do
+      Page.set_content(page, "<div><label for=\"name\">Name</label><input id=\"name\" /></div>")
+      locator = Page.locator(page, "div")
+      assert locator |> Locator.get_by_label("Name") |> Locator.count() == 1
+    end
+  end
+
+  describe "Locator.get_by_placeholder/3" do
+    test "finds element by placeholder within locator", %{page: page} do
+      Page.set_content(page, "<div><input placeholder=\"Search\" /></div>")
+      locator = Page.locator(page, "div")
+      assert locator |> Locator.get_by_placeholder("Search") |> Locator.count() == 1
+    end
+  end
+
+  describe "Locator.get_by_alt_text/3" do
+    test "finds element by alt text within locator", %{page: page} do
+      Page.set_content(page, "<div><img alt=\"Logo\" src=\"a.png\" /></div>")
+      locator = Page.locator(page, "div")
+      assert locator |> Locator.get_by_alt_text("Logo") |> Locator.count() == 1
+    end
+  end
+
+  describe "Locator.get_by_title/3" do
+    test "finds element by title within locator", %{page: page} do
+      Page.set_content(page, "<div><span title=\"Info\">i</span></div>")
+      locator = Page.locator(page, "div")
+      assert locator |> Locator.get_by_title("Info") |> Locator.count() == 1
+    end
+  end
+
+  describe "Locator.get_by_test_id/2" do
+    test "finds element by test id within locator", %{page: page} do
+      Page.set_content(page, "<div><span data-testid=\"item\">Item</span></div>")
+      locator = Page.locator(page, "div")
+      assert locator |> Locator.get_by_test_id("item") |> Locator.count() == 1
+    end
+  end
+
   describe "Locator.hover/2" do
     test "puts the matching element into :hover state", %{assets: assets, page: page} do
       locator = Page.locator(page, "#button-6")
@@ -678,12 +726,15 @@ defmodule Playwright.LocatorTest do
       on_exit(:ok, fn ->
         Playwright.Page.close(other_page)
       end)
+
       page
       |> Page.set_content("<div></div>")
 
       div_locator = Page.locator(page, "div")
+
       other_page
       |> Page.set_content("<span></span>")
+
       span_locator = Page.locator(other_page, "span")
 
       assert_raise ArgumentError, "Locators must belong to the same frame", fn ->

@@ -418,20 +418,30 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec get_by_alt_text(Page.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_alt_text(page, text, options \\ %{})
+  @spec get_by_alt_text(Page.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_alt_text(page, text, options \\ %{}) do
+    main_frame(page) |> Frame.get_by_alt_text(text, options)
+  end
 
-  # @spec get_by_label(Page.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_label(page, text, options \\ %{})
+  @spec get_by_label(Page.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_label(page, text, options \\ %{}) do
+    main_frame(page) |> Frame.get_by_label(text, options)
+  end
 
-  # @spec get_by_placeholder(Page.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_placeholder(page, text, options \\ %{})
+  @spec get_by_placeholder(Page.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_placeholder(page, text, options \\ %{}) do
+    main_frame(page) |> Frame.get_by_placeholder(text, options)
+  end
 
-  # @spec get_by_role(Page.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_role(page, text, options \\ %{})
+  @spec get_by_role(Page.t(), atom() | binary(), options()) :: Playwright.Locator.t()
+  def get_by_role(page, role, options \\ %{}) do
+    main_frame(page) |> Frame.get_by_role(role, options)
+  end
 
-  # @spec get_by_test_id(Page.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_test_id(page, text, options \\ %{})
+  @spec get_by_test_id(Page.t(), binary()) :: Playwright.Locator.t()
+  def get_by_test_id(page, test_id) do
+    main_frame(page) |> Frame.get_by_test_id(test_id)
+  end
 
   @doc """
   Allows locating elements that contain given text.
@@ -448,8 +458,10 @@ defmodule Playwright.Page do
     main_frame(page) |> Frame.get_by_text(text, options)
   end
 
-  # @spec get_by_title(Page.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_title(page, text, options \\ %{})
+  @spec get_by_title(Page.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_title(page, text, options \\ %{}) do
+    main_frame(page) |> Frame.get_by_title(text, options)
+  end
 
   # @spec go_back(t(), options()) :: Response.t() | nil
   # def go_back(page, options \\ %{})
