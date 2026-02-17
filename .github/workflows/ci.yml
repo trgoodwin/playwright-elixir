@@ -8,13 +8,13 @@ on:
 
 jobs:
   all:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Build & Test
     env:
       MIX_ENV: test
       PLAYWRIGHT_TRANSPORT: driver
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
