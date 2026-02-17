@@ -17,8 +17,11 @@ defmodule Playwright.Response do
 
   # ---
 
-  # @spec all_headers(t()) :: map()
-  # def all_headers(response)
+  @spec all_headers(t()) :: map()
+  def all_headers(%Response{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :raw_response_headers)
+    |> headers_to_map()
+  end
 
   # ---
 
@@ -39,20 +42,39 @@ defmodule Playwright.Response do
   # @spec from_service_worker(Response.t()) :: boolean()
   # def from_service_worker(response)
 
-  # @spec header_value(t(), binary()) :: binary() | nil
-  # def header_value(response, name)
+  # ---
 
-  # @spec header_values(t()) :: [binary()]
-  # def header_values(response)
+  @spec header_value(t(), binary()) :: binary() | nil
+  def header_value(response, name) do
+    headers = all_headers(response)
+    Map.get(headers, String.downcase(name))
+  end
 
-  # @spec headers(Response.t()) :: headers() # map()
-  # def headers(response)
+  # ---
 
-  # @spec headers_list(Response.t()) :: [map()]
-  # def headers_list(response)
+  @spec header_values(t(), binary()) :: [binary()]
+  def header_values(%Response{session: session, guid: guid}, name) do
+    headers = Channel.post(session, {:guid, guid}, :raw_response_headers)
+    name_lower = String.downcase(name)
 
-  # @spec json(t()) :: Serializable.t()
-  # def json(response)
+    headers
+    |> Enum.filter(fn h -> String.downcase(h.name) == name_lower end)
+    |> Enum.map(fn h -> h.value end)
+  end
+
+  # ---
+
+  @spec headers_array(t()) :: [map()]
+  def headers_array(%Response{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :raw_response_headers)
+  end
+
+  # ---
+
+  @spec json(t()) :: any()
+  def json(response) do
+    body(response) |> Jason.decode!()
+  end
 
   # ---
 
@@ -71,11 +93,21 @@ defmodule Playwright.Response do
   # @spec request(t()) :: Request.t()
   # def request(response)
 
-  # @spec security_details(t()) :: map() | nil
-  # def security_details(response)
+  # ---
 
-  # @spec server_addr(t()) :: map() | nil
-  # def server_addr(response)
+  @spec security_details(t()) :: map() | nil
+  def security_details(%Response{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :security_details)
+  end
+
+  # ---
+
+  @spec server_addr(t()) :: map() | nil
+  def server_addr(%Response{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :server_addr)
+  end
+
+  # ---
 
   # @spec status(t()) :: number()
   # def status(response)
@@ -95,5 +127,12 @@ defmodule Playwright.Response do
   # @spec url(t()) :: binary()
   # def url(response)
 
-  # ---
+  # private
+  # ---------------------------------------------------------------------------
+
+  defp headers_to_map(headers) when is_list(headers) do
+    Enum.reduce(headers, %{}, fn header, acc ->
+      Map.put(acc, String.downcase(header.name), header.value)
+    end)
+  end
 end
