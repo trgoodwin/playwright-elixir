@@ -307,8 +307,15 @@ defmodule Playwright.ElementHandle do
   # def set_checked(handle, checked, options \\ %{})
 
   # ⚠️ DISCOURAGED
-  # @spec set_input_files(ElementHandle.t(), file_list(), options()) :: :ok
-  # def set_input_files(handle, files, options \\ %{})
+  @spec set_input_files(ElementHandle.t(), binary() | [binary()], options()) :: :ok
+  def set_input_files(%ElementHandle{session: session} = handle, files, options \\ %{}) do
+    params =
+      Map.merge(options, %{
+        local_paths: normalize_file_payloads(files)
+      })
+
+    Channel.post(session, {:guid, handle.guid}, :set_input_files, params)
+  end
 
   # ⚠️ DISCOURAGED
   # @spec tap(ElementHandle.t(), options()) :: :ok
@@ -342,4 +349,15 @@ defmodule Playwright.ElementHandle do
   # def wait_for_selector(handle, selector, options \\ %{})
 
   # ---
+
+  # private
+  # ---------------------------------------------------------------------------
+
+  defp normalize_file_payloads(files) when is_binary(files) do
+    normalize_file_payloads([files])
+  end
+
+  defp normalize_file_payloads(files) when is_list(files) do
+    Enum.map(files, &Path.expand/1)
+  end
 end
