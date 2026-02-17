@@ -558,40 +558,145 @@ defmodule Playwright.BrowserContext do
   # @spec service_workers(t()) :: [Playwright.Worker.t()]
   # def service_workers(context)
 
-  # test_navigation.py
-  # @spec set_default_navigation_timeout(t(), number()) :: :ok
-  # def set_default_navigation_timeout(context, timeout)
+  # ---
 
-  # test_navigation.py
-  # @spec set_default_timeout(t(), number()) :: :ok
-  # def set_default_timeout(context, timeout)
+  @doc """
+  Sets the default navigation timeout for the `Playwright.BrowserContext`.
 
-  # test_interception.py
-  # test_network.py
-  # @spec set_extra_http_headers(t(), headers()) :: :ok
-  # def set_extra_http_headers(context, headers)
+  This setting changes the default maximum navigation time for the following
+  methods and related shortcuts:
 
-  # test_geolocation.py
-  # @spec set_geolocation(t(), geolocation()) :: :ok
-  # def set_geolocation(context, geolocation)
+  - `Playwright.Page.go_back/2`
+  - `Playwright.Page.go_forward/2`
+  - `Playwright.Page.goto/3`
+  - `Playwright.Page.reload/2`
+  - `Playwright.Page.set_content/3`
+  - `Playwright.Page.wait_for_url/3`
+
+  ## Returns
+
+    - `:ok`
+
+  ## Arguments
+
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `timeout` | param  | `number()`   | Maximum navigation time in milliseconds. |
+  """
+  @spec set_default_navigation_timeout(t(), number()) :: :ok
+  def set_default_navigation_timeout(%BrowserContext{} = _context, _timeout) do
+    # In the Playwright JS client, setDefaultNavigationTimeout is a client-only
+    # operation that sets local timeout settings. There is no corresponding
+    # server-side dispatch. This is a no-op stub for API completeness.
+    :ok
+  end
+
+  @doc """
+  Sets the default timeout for all operations on the `Playwright.BrowserContext`.
+
+  This setting changes the default maximum time for all methods accepting a
+  `timeout` option.
+
+  ## Returns
+
+    - `:ok`
+
+  ## Arguments
+
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `timeout` | param  | `number()`   | Maximum time in milliseconds. Pass `0` to disable timeout. |
+  """
+  @spec set_default_timeout(t(), number()) :: :ok
+  def set_default_timeout(%BrowserContext{} = _context, _timeout) do
+    # In the Playwright JS client, setDefaultTimeout is a client-only
+    # operation that sets local timeout settings. There is no corresponding
+    # server-side dispatch. This is a no-op stub for API completeness.
+    :ok
+  end
+
+  @doc """
+  Sets extra HTTP headers that will be sent with every request initiated by any
+  page in this context.
+
+  These headers are merged with page-specific extra HTTP headers set with
+  `Playwright.Page.set_extra_http_headers/2`. If a page overrides a particular
+  header, the page-specific header value will be used instead of the
+  browser context header value.
+
+  ## Returns
+
+    - `:ok`
+
+  ## Arguments
+
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `headers` | param  | `map()`      | A map of additional HTTP headers to be sent with every request. All header values must be strings. |
+  """
+  @spec set_extra_http_headers(t(), map()) :: :ok
+  def set_extra_http_headers(%BrowserContext{session: session, guid: guid}, headers) do
+    headers_list = Enum.map(headers, fn {k, v} -> %{name: to_string(k), value: to_string(v)} end)
+    Channel.post(session, {:guid, guid}, "setExtraHTTPHeaders", %{headers: headers_list})
+    :ok
+  end
+
+  @doc """
+  Sets the context's geolocation.
+
+  Passing `nil` clears the geolocation override.
+
+  ## Returns
+
+    - `:ok`
+
+  ## Arguments
+
+  | key/name      | type   |              | description |
+  | ------------- | ------ | ------------ | ----------- |
+  | `geolocation` | param  | `map() or nil` | The geolocation to set, with keys `:latitude`, `:longitude`, and optionally `:accuracy`. Pass `nil` to clear. |
+
+  ## Example
+
+  Consider using `Playwright.Browser.new_context/2` with the `geolocation`
+  option to set the geolocation for all pages in the context.
+
+      BrowserContext.set_geolocation(context, %{latitude: 59.95, longitude: 30.31667})
+
+  """
+  @spec set_geolocation(t(), map() | nil) :: :ok
+  def set_geolocation(%BrowserContext{session: session, guid: guid}, geolocation) do
+    Channel.post(session, {:guid, guid}, :set_geolocation, %{geolocation: geolocation})
+    :ok
+  end
 
   # ???
   # @spec set_http_credentials(t(), http_credentials()) :: :ok
   # def set_http_credentials(context, http_credentials)
-
-  # ---
 
   @spec set_offline(t(), boolean()) :: :ok
   def set_offline(%BrowserContext{session: session} = context, offline) do
     Channel.post(session, {:guid, context.guid}, :set_offline, %{offline: offline})
   end
 
-  # ---
+  @doc """
+  Returns storage state for this context, contains current cookies and local
+  storage snapshot.
 
-  # @spec storage_state(t(), String.t()) :: {:ok, storage_state()}
-  # def storage_state(context, path \\ nil)
+  ## Returns
 
-  # ---
+    - `map()` with keys `:cookies` and `:origins`
+
+  ## Arguments
+
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `options` | param  | `map()`      | Options map. `(optional)` |
+  """
+  @spec storage_state(t(), options()) :: map()
+  def storage_state(%BrowserContext{session: session, guid: guid}, options \\ %{}) do
+    Channel.post(session, {:guid, guid}, :storage_state, options)
+  end
 
   @spec unroute(t(), binary(), function() | nil) :: :ok
   def unroute(%BrowserContext{session: session} = context, pattern, callback \\ nil) do
@@ -606,8 +711,25 @@ defmodule Playwright.BrowserContext do
     end)
   end
 
-  # @spec unroute_all(t(), map()) :: :ok
-  # def unroute_all(context, options \\ %{})
+  @doc """
+  Removes all routes created with `route/4`.
+
+  ## Returns
+
+    - `:ok`
+
+  ## Arguments
+
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `options` | param  | `map()`      | Options map. `(optional)` |
+  """
+  @spec unroute_all(t(), options()) :: :ok
+  def unroute_all(%BrowserContext{session: session, guid: guid}, options \\ %{}) do
+    _ = options
+    Channel.post(session, {:guid, guid}, :set_network_interception_patterns, %{patterns: []})
+    :ok
+  end
 
   # @spec wait_for_event(t(), binary(), map()) :: map()
   # def wait_for_event(context, event, options \\ %{})

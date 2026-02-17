@@ -88,6 +88,10 @@ defmodule Playwright.SDK.Channel.Response do
     cookies
   end
 
+  defp parse([{:cookies, cookies}, {:origins, origins}], _catalog) do
+    %{cookies: cookies, origins: origins}
+  end
+
   defp parse([{:headers, headers}], _catalog) do
     headers
   end

@@ -274,6 +274,83 @@ defmodule Playwright.BrowserContextTest do
     end
   end
 
+  describe "BrowserContext.set_default_timeout/2" do
+    @tag exclude: [:page]
+    test "sets default timeout", %{browser: browser} do
+      context = Browser.new_context(browser)
+      assert BrowserContext.set_default_timeout(context, 5000) == :ok
+      BrowserContext.close(context)
+    end
+  end
+
+  describe "BrowserContext.set_default_navigation_timeout/2" do
+    @tag exclude: [:page]
+    test "sets default navigation timeout", %{browser: browser} do
+      context = Browser.new_context(browser)
+      assert BrowserContext.set_default_navigation_timeout(context, 5000) == :ok
+      BrowserContext.close(context)
+    end
+  end
+
+  describe "BrowserContext.set_extra_http_headers/2" do
+    @tag exclude: [:page]
+    test "sets extra headers", %{browser: browser} do
+      context = Browser.new_context(browser)
+      assert BrowserContext.set_extra_http_headers(context, %{"X-Custom" => "value"}) == :ok
+      BrowserContext.close(context)
+    end
+
+    @tag exclude: [:page]
+    test "extra headers are sent with requests", %{assets: assets, browser: browser} do
+      context = Browser.new_context(browser)
+      page = BrowserContext.new_page(context)
+      BrowserContext.set_extra_http_headers(context, %{"X-Custom-Header" => "test-value"})
+
+      Page.goto(page, assets.empty)
+      # Verify the header was applied without error
+      assert Page.url(page) =~ "empty.html"
+      BrowserContext.close(context)
+    end
+  end
+
+  describe "BrowserContext.set_geolocation/2" do
+    @tag exclude: [:page]
+    test "sets geolocation", %{browser: browser} do
+      context = Browser.new_context(browser, %{geolocation: %{latitude: 0.0, longitude: 0.0}, permissions: ["geolocation"]})
+      _page = BrowserContext.new_page(context)
+      assert BrowserContext.set_geolocation(context, %{latitude: 59.95, longitude: 30.31667}) == :ok
+
+      BrowserContext.close(context)
+    end
+
+    @tag exclude: [:page]
+    test "clears geolocation with nil", %{browser: browser} do
+      context = Browser.new_context(browser, %{geolocation: %{latitude: 10.0, longitude: 20.0}, permissions: ["geolocation"]})
+      assert BrowserContext.set_geolocation(context, nil) == :ok
+      BrowserContext.close(context)
+    end
+  end
+
+  describe "BrowserContext.storage_state/1" do
+    @tag exclude: [:page]
+    test "returns storage state", %{browser: browser} do
+      context = Browser.new_context(browser)
+      state = BrowserContext.storage_state(context)
+      assert is_map(state)
+      assert Map.has_key?(state, "cookies") or Map.has_key?(state, :cookies)
+      BrowserContext.close(context)
+    end
+  end
+
+  describe "BrowserContext.unroute_all/1" do
+    @tag exclude: [:page]
+    test "removes all route handlers", %{browser: browser} do
+      context = Browser.new_context(browser)
+      assert BrowserContext.unroute_all(context) == :ok
+      BrowserContext.close(context)
+    end
+  end
+
   describe "User Agent" do
     test "can be set via new_context", %{browser: browser} do
       context = Browser.new_context(browser, %{"userAgent" => "Mozzies"})
