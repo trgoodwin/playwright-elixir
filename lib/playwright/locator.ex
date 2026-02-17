@@ -156,8 +156,21 @@ defmodule Playwright.Locator do
     Frame.eval_on_selector_all(locator.frame, locator.selector, "ee => ee.map(e => e.textContent || '')")
   end
 
-  # @spec and(Locator.t(), Locator.t()) :: Locator.t()
-  # def and(locator, other)
+  @doc """
+  Returns a new `Playwright.Locator` that matches elements satisfying both
+  this locator and the given locator.
+
+  This implements the `and` function for locators, but `and` is not an allowed
+  function name in Elixir.
+  """
+  @spec and_(Locator.t(), Locator.t()) :: Locator.t()
+  def and_(%Locator{frame: frame} = locator, %Locator{frame: frame} = other) do
+    new(frame, locator.selector <> " >> internal:and=" <> Jason.encode!(other.selector))
+  end
+
+  def and_(_, _) do
+    raise ArgumentError, "Locators must belong to the same frame"
+  end
 
   # @spec blur(Locator.t(), options()) :: :ok
   def blur(locator, options \\ %{}) do
@@ -288,8 +301,15 @@ defmodule Playwright.Locator do
     Frame.click(locator.frame, locator.selector, options)
   end
 
-  # @spec content_frame(Locator.t()) :: FrameLocator.t()
-  # def content_frame(locator)
+  @doc """
+  Returns a `Playwright.Page.FrameLocator` pointing to the same iframe as this
+  locator. Useful when you have a `Locator` targeting an `<iframe>` and need to
+  interact with its contents.
+  """
+  @spec content_frame(Locator.t()) :: Playwright.Page.FrameLocator.t()
+  def content_frame(%Locator{} = locator) do
+    Playwright.Page.FrameLocator.new(locator.frame, locator.selector)
+  end
 
   @doc """
   Returns the number of elements matching given selector.
@@ -604,8 +624,59 @@ defmodule Playwright.Locator do
     Frame.fill(locator.frame, locator.selector, value, options)
   end
 
-  # @spec filter(Locator.t(), options()) :: Locator.t()
-  # def filter(locator, options \\ %{})
+  @doc """
+  Narrows the locator's matches by additional conditions such as `:has_text`,
+  `:has_not_text`, `:has`, and `:has_not`.
+
+  ## Options
+
+    - `:has_text` — matches elements that contain the given text (case-insensitive).
+    - `:has_not_text` — matches elements that do **not** contain the given text.
+    - `:has` — matches elements that contain a descendant matching the given `Locator`.
+    - `:has_not` — matches elements that do **not** contain such a descendant.
+  """
+  @spec filter(Locator.t(), map()) :: Locator.t()
+  def filter(%Locator{} = locator, options \\ %{}) do
+    selector = locator.selector
+
+    selector =
+      case Map.get(options, :has_text) do
+        nil -> selector
+        text -> selector <> " >> internal:has-text=" <> escape_for_text_selector(text) <> "i"
+      end
+
+    selector =
+      case Map.get(options, :has_not_text) do
+        nil -> selector
+        text -> selector <> " >> internal:has-not-text=" <> escape_for_text_selector(text) <> "i"
+      end
+
+    selector =
+      case Map.get(options, :has) do
+        nil ->
+          selector
+
+        %Locator{frame: frame} = has_locator when frame == locator.frame ->
+          selector <> " >> internal:has=" <> Jason.encode!(has_locator.selector)
+
+        %Locator{} ->
+          raise ArgumentError, "Inner 'has' locator must belong to the same frame"
+      end
+
+    selector =
+      case Map.get(options, :has_not) do
+        nil ->
+          selector
+
+        %Locator{frame: frame} = has_not_locator when frame == locator.frame ->
+          selector <> " >> internal:has-not=" <> Jason.encode!(has_not_locator.selector)
+
+        %Locator{} ->
+          raise ArgumentError, "Inner 'has_not' locator must belong to the same frame"
+      end
+
+    new(locator.frame, selector)
+  end
 
   @doc """
   Returns a new `Playwright.Locator` scoped to the first matching element.
@@ -1027,8 +1098,13 @@ defmodule Playwright.Locator do
     raise ArgumentError, "Locators must belong to the same frame"
   end
 
-  # @spec page(Locator.t()) :: Page.t()
-  # def page(locator)
+  @doc """
+  Returns the `Playwright.Page` that this locator belongs to.
+  """
+  @spec page(Locator.t()) :: Page.t()
+  def page(%Locator{frame: frame}) do
+    find_page_for_frame(frame)
+  end
 
   @doc """
   Focuses the element, and then uses `keyboard.down(key)` and `keyboard.up(key)`.
@@ -1092,8 +1168,21 @@ defmodule Playwright.Locator do
     Frame.press(locator.frame, locator.selector, key, options)
   end
 
-  # @spec press_sequentially(Locator.t(), binary(), options()) :: :ok
-  # def press_sequentially(locator, text, options \\ %{})
+  @doc """
+  Types text character by character, as if it was a user with a real keyboard.
+
+  Focuses the element, and then sends a `keydown`, `keypress/input`, and
+  `keyup` event for each character in the text. This is the recommended way
+  to type text that triggers per-character input events.
+
+  In most cases, `Playwright.Locator.fill/3` is faster and more reliable.
+  Use `press_sequentially/3` only when the page has special handling for
+  keyboard input.
+  """
+  @spec press_sequentially(Locator.t(), binary(), options_keyboard()) :: :ok
+  def press_sequentially(%Locator{} = locator, text, options \\ %{}) do
+    type(locator, text, options)
+  end
 
   @doc """
   Returns a buffer with the captured screenshot data.
@@ -1457,6 +1546,20 @@ defmodule Playwright.Locator do
 
   # private
   # ---------------------------------------------------------------------------
+
+  defp find_page_for_frame(%Frame{} = frame) do
+    alias Playwright.SDK.Channel.{Catalog, Session}
+
+    catalog = Session.catalog(frame.session)
+
+    catalog
+    |> Catalog.all()
+    |> Map.values()
+    |> Enum.find(fn
+      %Page{} = p -> p.main_frame && p.main_frame.guid == frame.guid
+      _ -> false
+    end)
+  end
 
   defp returning(subject, task) do
     task.()

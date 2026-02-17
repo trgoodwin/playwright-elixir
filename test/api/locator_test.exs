@@ -966,4 +966,56 @@ defmodule Playwright.LocatorTest do
       assert [:ok, %Locator{}] = Task.await_many([setup, check])
     end
   end
+
+  describe "Locator.and_/2" do
+    test "matches elements satisfying both conditions", %{page: page} do
+      Page.set_content(page, "<button>Submit</button><button disabled>Cancel</button>")
+      button = Page.get_by_role(page, :button)
+      submit = Page.get_by_text(page, "Submit")
+      locator = Locator.and_(button, submit)
+      assert Locator.count(locator) == 1
+      assert Locator.text_content(locator) == "Submit"
+    end
+  end
+
+  describe "Locator.filter/2" do
+    test "filters by has_text", %{page: page} do
+      Page.set_content(page, "<div><span>hello</span></div><div><span>world</span></div>")
+      locator = page |> Page.locator("div") |> Locator.filter(%{has_text: "hello"})
+      assert Locator.count(locator) == 1
+    end
+
+    test "filters by has", %{page: page} do
+      Page.set_content(page, "<div><button>Click</button></div><div><span>Text</span></div>")
+      has_button = Page.locator(page, "button")
+      locator = page |> Page.locator("div") |> Locator.filter(%{has: has_button})
+      assert Locator.count(locator) == 1
+    end
+  end
+
+  describe "Locator.content_frame/1" do
+    test "returns a FrameLocator for an iframe", %{page: page, assets: assets} do
+      Page.goto(page, assets.prefix <> "/frames/one-frame.html")
+      fl = page |> Page.locator("iframe") |> Locator.content_frame()
+      locator = Playwright.Page.FrameLocator.locator(fl, "div")
+      assert Locator.text_content(locator) =~ "Hi, I'm frame"
+    end
+  end
+
+  describe "Locator.press_sequentially/3" do
+    test "types text character by character", %{page: page} do
+      Page.set_content(page, "<input type=\"text\" />")
+      locator = Page.locator(page, "input")
+      Locator.press_sequentially(locator, "hello")
+      assert Locator.input_value(locator) == "hello"
+    end
+  end
+
+  describe "Locator.page/1" do
+    test "returns the page associated with the locator", %{page: page} do
+      Page.set_content(page, "<div>test</div>")
+      locator = Page.locator(page, "div")
+      assert %Playwright.Page{} = Locator.page(locator)
+    end
+  end
 end
