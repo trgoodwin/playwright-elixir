@@ -1,43 +1,89 @@
 defmodule Playwright.Page.FrameLocator do
   @moduledoc false
 
-  # @spec first(t()) :: FrameLocator.t()
-  # def first(locator)
+  alias Playwright.Locator
+  alias Playwright.Page.FrameLocator
 
-  # @spec frame_locator(t(), binary()) :: FrameLocator.t()
-  # def frame_locator(locator, selector)
+  @enforce_keys [:frame, :frame_selector]
+  defstruct [:frame, :frame_selector]
 
-  # @spec get_by_alt_text(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_alt_text(locator, text, options \\ %{})
+  @type t() :: %__MODULE__{
+          frame: Playwright.Frame.t(),
+          frame_selector: binary()
+        }
 
-  # @spec get_by_label(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_label(locator, text, options \\ %{})
+  @spec new(Playwright.Frame.t(), binary()) :: t()
+  def new(frame, selector) do
+    %FrameLocator{frame: frame, frame_selector: selector}
+  end
 
-  # @spec get_by_placeholder(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_placeholder(locator, text, options \\ %{})
+  @spec locator(t(), binary()) :: Locator.t()
+  def locator(%FrameLocator{} = fl, selector) do
+    Locator.new(fl.frame, "#{fl.frame_selector} >> internal:control=enter-frame >> #{selector}")
+  end
 
-  # @spec get_by_role(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_role(locator, text, options \\ %{})
+  @spec frame_locator(t(), binary()) :: t()
+  def frame_locator(%FrameLocator{} = fl, selector) do
+    %FrameLocator{
+      frame: fl.frame,
+      frame_selector: "#{fl.frame_selector} >> internal:control=enter-frame >> #{selector}"
+    }
+  end
 
-  # @spec get_by_test_id(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_test_id(locator, text, options \\ %{})
+  @spec owner(t()) :: Locator.t()
+  def owner(%FrameLocator{} = fl) do
+    Locator.new(fl.frame, fl.frame_selector)
+  end
 
-  # @spec get_by_text(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_text(locator, text, options \\ %{})
+  @spec first(t()) :: t()
+  def first(%FrameLocator{} = fl) do
+    %FrameLocator{fl | frame_selector: "#{fl.frame_selector} >> nth=0"}
+  end
 
-  # @spec get_by_title(t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_title(locator, text, options \\ %{})
+  @spec last(t()) :: t()
+  def last(%FrameLocator{} = fl) do
+    %FrameLocator{fl | frame_selector: "#{fl.frame_selector} >> nth=-1"}
+  end
 
-  # @spec last(t()) :: FrameLocator.t()
-  # def last(locator)
+  @spec nth(t(), integer()) :: t()
+  def nth(%FrameLocator{} = fl, index) do
+    %FrameLocator{fl | frame_selector: "#{fl.frame_selector} >> nth=#{index}"}
+  end
 
-  # @spec locator(t(), selector_or_locator(), options()) :: Locator.t()
-  # def locator(locator, selector, options \\ %{})
-  # def locator(locator, locator, options \\ %{})
+  # get_by_* methods -- each delegates to locator/2 with the appropriate selector
 
-  # @spec nth(t(), number()) :: FrameLocator.t()
-  # def nth(locator, index)
+  @spec get_by_alt_text(t(), binary(), map()) :: Locator.t()
+  def get_by_alt_text(%FrameLocator{} = fl, text, options \\ %{}) do
+    locator(fl, Locator.get_by_alt_text_selector(text, options))
+  end
 
-  # @spec owner(t()) :: Locator.t()
-  # def owner(locator)
+  @spec get_by_label(t(), binary(), map()) :: Locator.t()
+  def get_by_label(%FrameLocator{} = fl, text, options \\ %{}) do
+    locator(fl, Locator.get_by_label_selector(text, options))
+  end
+
+  @spec get_by_placeholder(t(), binary(), map()) :: Locator.t()
+  def get_by_placeholder(%FrameLocator{} = fl, text, options \\ %{}) do
+    locator(fl, Locator.get_by_placeholder_selector(text, options))
+  end
+
+  @spec get_by_role(t(), atom() | binary(), map()) :: Locator.t()
+  def get_by_role(%FrameLocator{} = fl, role, options \\ %{}) do
+    locator(fl, Locator.get_by_role_selector(role, options))
+  end
+
+  @spec get_by_test_id(t(), binary()) :: Locator.t()
+  def get_by_test_id(%FrameLocator{} = fl, test_id) do
+    locator(fl, Locator.get_by_test_id_selector(test_id))
+  end
+
+  @spec get_by_text(t(), binary(), map()) :: Locator.t()
+  def get_by_text(%FrameLocator{} = fl, text, options \\ %{}) do
+    locator(fl, Locator.get_by_text_selector(text, options))
+  end
+
+  @spec get_by_title(t(), binary(), map()) :: Locator.t()
+  def get_by_title(%FrameLocator{} = fl, text, options \\ %{}) do
+    locator(fl, Locator.get_by_title_selector(text, options))
+  end
 end

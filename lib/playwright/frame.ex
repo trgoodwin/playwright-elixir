@@ -418,8 +418,10 @@ defmodule Playwright.Frame do
   # @spec frame_element(Frame.t()) :: ElementHandle.t()
   # def frame_element(frame)
 
-  # @spec frame_locator(Frame.t(), binary()) :: FrameLocator.t()
-  # def frame_locator(frame, selector)
+  @spec frame_locator(Frame.t(), binary()) :: Playwright.Page.FrameLocator.t()
+  def frame_locator(frame, selector) do
+    Playwright.Page.FrameLocator.new(frame, selector)
+  end
 
   # ---
 
