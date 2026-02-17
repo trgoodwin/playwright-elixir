@@ -12,5 +12,4 @@ defmodule Playwright.FileChooser do
 
   # @spec set_files(t(), any(), options()) :: :ok
   # def cancel(file_chooser, files, options \\ %{})
-
 end

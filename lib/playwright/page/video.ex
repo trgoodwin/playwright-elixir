@@ -9,5 +9,4 @@ defmodule Playwright.Video do
 
   # @spec save_as(t(), binary()) :: :ok
   # def save_as(video, path)
-
 end

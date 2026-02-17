@@ -18,5 +18,4 @@ defmodule Playwright.Mouse do
 
   # @spec wheel(t(), number(), number()) :: :ok
   # def wheel(mouse, delta_x, delta_y)
-
 end

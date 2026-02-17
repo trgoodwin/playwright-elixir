@@ -36,6 +36,7 @@ defmodule Playwright.Frame.GetByTest do
       <label for="user">Username</label><input id="user" />
       <label for="other">Username Field</label><input id="other" />
       """)
+
       frame = Page.main_frame(page)
       assert frame |> Frame.get_by_label("Username", %{exact: true}) |> Locator.count() == 1
     end
@@ -54,6 +55,7 @@ defmodule Playwright.Frame.GetByTest do
       <input placeholder="Enter your name" />
       <input placeholder="Enter your name here" />
       """)
+
       frame = Page.main_frame(page)
       assert frame |> Frame.get_by_placeholder("Enter your name", %{exact: true}) |> Locator.count() == 1
     end
@@ -72,6 +74,7 @@ defmodule Playwright.Frame.GetByTest do
       <img alt="Company Logo" src="a.png" />
       <img alt="Company Logo Large" src="b.png" />
       """)
+
       frame = Page.main_frame(page)
       assert frame |> Frame.get_by_alt_text("Company Logo", %{exact: true}) |> Locator.count() == 1
     end
@@ -90,6 +93,7 @@ defmodule Playwright.Frame.GetByTest do
       <span title="Help Text">?</span>
       <span title="Help Text Extended">!</span>
       """)
+
       frame = Page.main_frame(page)
       assert frame |> Frame.get_by_title("Help Text", %{exact: true}) |> Locator.count() == 1
     end

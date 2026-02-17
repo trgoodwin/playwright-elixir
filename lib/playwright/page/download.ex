@@ -27,5 +27,4 @@ defmodule Playwright.Download do
 
   # @spec url(t()) :: binary()
   # def url(download)
-
 end

@@ -12,5 +12,4 @@ defmodule Playwright.Coverage do
 
   # @spec stop_js_coverage(t()) :: result()
   # def stop_js_coverage(coverage)
-
 end

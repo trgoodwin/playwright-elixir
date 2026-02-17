@@ -3,5 +3,4 @@ defmodule Playwright.Touchscreen do
 
   # @spec tap(t(), number(), number()) :: :ok
   # def tap(touchscreen, x, y)
-
 end
