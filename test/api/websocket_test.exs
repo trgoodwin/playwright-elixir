@@ -5,6 +5,7 @@ defmodule Playwright.WebSocketTest do
 
   describe "WebSocket module" do
     test "exports url/1, is_closed/1, and on/3" do
+      Code.ensure_loaded!(WebSocket)
       assert function_exported?(WebSocket, :url, 1)
       assert function_exported?(WebSocket, :is_closed, 1)
       assert function_exported?(WebSocket, :on, 3)
