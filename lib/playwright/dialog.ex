@@ -1,22 +1,41 @@
 defmodule Playwright.Dialog do
   @moduledoc false
   use Playwright.SDK.ChannelOwner
+  alias Playwright.SDK.Channel
 
-  # @spec accept(Dialog.t(), binary()) :: :ok
-  # def accept(dialog, prompt \\ "")
+  @property :message
+  @property :default_value
 
-  # @spec default_value(Dialog.t()) :: binary()
-  # def default_value(dialog)
+  @doc """
+  Returns the type of the dialog.
 
-  # @spec dismiss(Dialog.t()) :: :ok
-  # def dismiss(dialog)
+  Can be one of `"alert"`, `"beforeunload"`, `"confirm"`, or `"prompt"`.
+  """
+  @spec type(t()) :: binary()
+  def type(%__MODULE__{} = dialog) do
+    dialog = Channel.find(dialog.session, {:guid, dialog.guid})
+    dialog.type
+  end
 
-  # @spec message(Dialog.t()) :: binary()
-  # def message(dialog)
+  @doc """
+  Accepts the dialog.
 
-  # @spec page(Dialog.t()) :: nil | Page.t()
-  # def page(dialog)
+  ## Arguments
 
-  # @spec type(Dialog.t()) :: binary()
-  # def type(dialog)
+  | key/name     | type       | description |
+  | ------------ | ---------- | ----------- |
+  | `prompt_text`| `binary()` | Text to enter in a prompt dialog. Has no effect for other dialog types. |
+  """
+  @spec accept(t(), binary()) :: :ok
+  def accept(%__MODULE__{session: session, guid: guid}, prompt_text \\ "") do
+    Channel.post(session, {:guid, guid}, :accept, %{prompt_text: prompt_text})
+  end
+
+  @doc """
+  Dismisses the dialog.
+  """
+  @spec dismiss(t()) :: :ok
+  def dismiss(%__MODULE__{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :dismiss, %{})
+  end
 end
