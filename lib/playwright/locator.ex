@@ -703,8 +703,94 @@ defmodule Playwright.Locator do
     "internal:text=\"#{text}\"" <> selector_suffix
   end
 
-  # @spec get_by_title(Locator.t(), binary(), options()) :: Locator.t()
-  # def get_by_title(locator, text, options \\ %{})
+  @doc false
+  def get_by_role_selector(role, options) do
+    attrs =
+      options
+      |> Enum.reduce([], fn
+        {:name, value}, acc ->
+          exact = Map.get(options, :exact, false)
+          suffix = if exact, do: "s", else: "i"
+          escaped = escape_for_attribute_selector(value)
+          acc ++ ["[name=#{escaped}#{suffix}]"]
+
+        {:checked, value}, acc ->
+          acc ++ ["[checked=#{value}]"]
+
+        {:disabled, value}, acc ->
+          acc ++ ["[disabled=#{value}]"]
+
+        {:expanded, value}, acc ->
+          acc ++ ["[expanded=#{value}]"]
+
+        {:include_hidden, value}, acc ->
+          acc ++ ["[include-hidden=#{value}]"]
+
+        {:level, value}, acc ->
+          acc ++ ["[level=#{value}]"]
+
+        {:pressed, value}, acc ->
+          acc ++ ["[pressed=#{value}]"]
+
+        {:selected, value}, acc ->
+          acc ++ ["[selected=#{value}]"]
+
+        {:exact, _value}, acc ->
+          acc
+
+        _, acc ->
+          acc
+      end)
+      |> Enum.join("")
+
+    "internal:role=#{role}#{attrs}"
+  end
+
+  @doc false
+  def get_by_label_selector(text, options) do
+    exact = Map.get(options, :exact, false)
+    suffix = if exact, do: "s", else: "i"
+    "internal:label=" <> escape_for_text_selector(text) <> suffix
+  end
+
+  @doc false
+  def get_by_placeholder_selector(text, options) do
+    get_by_attr_selector("placeholder", text, options)
+  end
+
+  @doc false
+  def get_by_alt_text_selector(text, options) do
+    get_by_attr_selector("alt", text, options)
+  end
+
+  @doc false
+  def get_by_title_selector(text, options) do
+    get_by_attr_selector("title", text, options)
+  end
+
+  @doc false
+  def get_by_test_id_selector(test_id) do
+    "internal:testid=[data-testid=" <> escape_for_attribute_selector(test_id) <> "s]"
+  end
+
+  defp get_by_attr_selector(attr_name, text, options) do
+    exact = Map.get(options, :exact, false)
+    suffix = if exact, do: "s", else: "i"
+    "internal:attr=[#{attr_name}=" <> escape_for_attribute_selector(text) <> suffix <> "]"
+  end
+
+  defp escape_for_text_selector(text) do
+    "\"#{text}\""
+  end
+
+  defp escape_for_attribute_selector(value) do
+    escaped =
+      value
+      |> String.replace("\\", "\\\\")
+      |> String.replace("\"", "\\\"")
+
+    "\"#{escaped}\""
+  end
 
   # @spec highlight(Locator.t()) :: :ok
   # def highlight(locator)
@@ -907,10 +993,11 @@ defmodule Playwright.Locator do
 
   This implements the `or` function for locators, but `or` is not an allowed function name in elixir.
   """
-   @spec or_(Locator.t(), Locator.t()) :: Locator.t()
+  @spec or_(Locator.t(), Locator.t()) :: Locator.t()
   def or_(%Locator{frame: frame} = locator, %Locator{frame: frame} = other) do
-   new(frame, locator.selector <> ">> internal:or=" <> Jason.encode!(other.selector))
+    new(frame, locator.selector <> ">> internal:or=" <> Jason.encode!(other.selector))
   end
+
   def or_(_, _) do
     raise ArgumentError, "Locators must belong to the same frame"
   end

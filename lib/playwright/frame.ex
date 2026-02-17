@@ -438,20 +438,30 @@ defmodule Playwright.Frame do
     Channel.post(session, {:guid, frame.guid}, :get_attribute, params)
   end
 
-  # @spec get_by_alt_text(Frame.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_alt_text(frame, text, options \\ %{})
+  @spec get_by_alt_text(Frame.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_alt_text(frame, text, options \\ %{}) do
+    locator(frame, Locator.get_by_alt_text_selector(text, options))
+  end
 
-  # @spec get_by_label(Frame.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_label(frame, text, options \\ %{})
+  @spec get_by_label(Frame.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_label(frame, text, options \\ %{}) do
+    locator(frame, Locator.get_by_label_selector(text, options))
+  end
 
-  # @spec get_by_placeholder(Frame.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_placeholder(frame, text, options \\ %{})
+  @spec get_by_placeholder(Frame.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_placeholder(frame, text, options \\ %{}) do
+    locator(frame, Locator.get_by_placeholder_selector(text, options))
+  end
 
-  # @spec get_by_role(Frame.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_role(frame, text, options \\ %{})
+  @spec get_by_role(Frame.t(), atom() | binary(), options()) :: Playwright.Locator.t()
+  def get_by_role(frame, role, options \\ %{}) do
+    locator(frame, Locator.get_by_role_selector(role, options))
+  end
 
-  # @spec get_by_test_id(Frame.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_test_id(frame, text, options \\ %{})
+  @spec get_by_test_id(Frame.t(), binary()) :: Playwright.Locator.t()
+  def get_by_test_id(frame, test_id) do
+    locator(frame, Locator.get_by_test_id_selector(test_id))
+  end
 
   @doc """
   Allows locating elements that contain given text.
@@ -468,8 +478,10 @@ defmodule Playwright.Frame do
     locator(frame, Locator.get_by_text_selector(text, options))
   end
 
-  # @spec get_by_title(Frame.t(), binary(), options()) :: Playwright.Locator.t() | nil
-  # def get_by_title(frame, text, options \\ %{})
+  @spec get_by_title(Frame.t(), binary(), options()) :: Playwright.Locator.t()
+  def get_by_title(frame, text, options \\ %{}) do
+    locator(frame, Locator.get_by_title_selector(text, options))
+  end
 
   @doc """
   !!!
