@@ -88,6 +88,10 @@ defmodule Playwright.SDK.Channel.Response do
     cookies
   end
 
+  defp parse([{:headers, headers}], _catalog) do
+    headers
+  end
+
   defp parse([{:elements, value}], catalog) do
     Enum.map(value, fn %{guid: guid} -> Channel.Catalog.get(catalog, guid) end)
   end
@@ -98,6 +102,10 @@ defmodule Playwright.SDK.Channel.Response do
 
   defp parse([{:values, values}], _catalog) do
     values
+  end
+
+  defp parse([{_key, nil}], _catalog) do
+    nil
   end
 
   defp parse([], _catalog) do

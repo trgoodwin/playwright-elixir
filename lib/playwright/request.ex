@@ -43,23 +43,14 @@ defmodule Playwright.Request do
 
   # ---
 
-  # @spec all_headers(Request.t()) :: map()
-  # def all_headers(request)
-
   # @spec failure(Request.t()) :: failure() # map(error_text: message)
   # def failure(request)
 
   # @spec frame(Request.t()) :: Frame.t()
   # def frame(request)
 
-  # @spec header_value(Request.t(), binary()) :: binary() | nil
-  # def header_value(request, name)
-
   # @spec headers(Request.t()) :: headers() # map()
   # def headers(request)
-
-  # @spec headers_list(Request.t()) :: [map()]
-  # def headers_list(request)
 
   # @spec is_navigation_request(Request.t()) :: boolean()
   # def is_navigation_request(request)
@@ -85,20 +76,48 @@ defmodule Playwright.Request do
   # @spec resource_type(Request.t()) :: binary()
   # def resource_type(request)
 
-  # @spec response(Request.t()) :: Response.t() | nil
-  # def response(request)
-
   # @spec service_worker(Request.t()) :: Worker.t() | nil
   # def service_worker(request)
-
-  # @spec sizes(Request.t()) :: map()
-  # def sizes(request)
 
   # @spec timing(Request.t()) :: timing()
   # def timing(request)
 
   # @spec url(Request.t()) :: binary()
   # def url(request)
+
+  # ---
+
+  @spec response(t()) :: Response.t() | nil
+  def response(%__MODULE__{session: session, guid: guid}) do
+    case Channel.post(session, {:guid, guid}, :response) do
+      nil -> nil
+      %Response{} = response -> response
+    end
+  end
+
+  @spec all_headers(t()) :: map()
+  def all_headers(%__MODULE__{session: session, guid: guid}) do
+    headers = Channel.post(session, {:guid, guid}, :raw_request_headers)
+    headers_to_map(headers)
+  end
+
+  @spec header_value(t(), binary()) :: binary() | nil
+  def header_value(request, name) do
+    headers = all_headers(request)
+    Map.get(headers, String.downcase(name))
+  end
+
+  @spec headers_array(t()) :: [map()]
+  def headers_array(%__MODULE__{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :raw_request_headers)
+  end
+
+  @spec sizes(t()) :: map()
+  def sizes(%__MODULE__{} = request) do
+    resp = response(request)
+    if resp == nil, do: raise("Unable to fetch sizes for failed request")
+    Channel.post(resp.session, {:guid, resp.guid}, :sizes)
+  end
 
   # ---
 
@@ -112,6 +131,15 @@ defmodule Playwright.Request do
   def get_header(request, name) do
     Enum.find(request.initializer.headers, fn header ->
       String.downcase(header.name) == String.downcase(name)
+    end)
+  end
+
+  # private
+  # ---------------------------------------------------------------------------
+
+  defp headers_to_map(headers) when is_list(headers) do
+    Enum.reduce(headers, %{}, fn %{name: name, value: value}, acc ->
+      Map.put(acc, String.downcase(name), value)
     end)
   end
 end
