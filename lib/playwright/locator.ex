@@ -658,17 +658,17 @@ defmodule Playwright.Locator do
   end
 
   @spec get_by_alt_text(Locator.t(), binary(), options()) :: Locator.t()
-  def get_by_alt_text(locator, text, options \\ %{}) do
+  def get_by_alt_text(locator, text, options \\ %{}) when is_binary(text) do
     locator |> Locator.locator(get_by_alt_text_selector(text, options))
   end
 
   @spec get_by_label(Locator.t(), binary(), options()) :: Locator.t()
-  def get_by_label(locator, text, options \\ %{}) do
+  def get_by_label(locator, text, options \\ %{}) when is_binary(text) do
     locator |> Locator.locator(get_by_label_selector(text, options))
   end
 
   @spec get_by_placeholder(Locator.t(), binary(), options()) :: Locator.t()
-  def get_by_placeholder(locator, text, options \\ %{}) do
+  def get_by_placeholder(locator, text, options \\ %{}) when is_binary(text) do
     locator |> Locator.locator(get_by_placeholder_selector(text, options))
   end
 
@@ -678,12 +678,12 @@ defmodule Playwright.Locator do
   end
 
   @spec get_by_test_id(Locator.t(), binary()) :: Locator.t()
-  def get_by_test_id(locator, test_id) do
+  def get_by_test_id(locator, test_id) when is_binary(test_id) do
     locator |> Locator.locator(get_by_test_id_selector(test_id))
   end
 
   @spec get_by_title(Locator.t(), binary(), options()) :: Locator.t()
-  def get_by_title(locator, text, options \\ %{}) do
+  def get_by_title(locator, text, options \\ %{}) when is_binary(text) do
     locator |> Locator.locator(get_by_title_selector(text, options))
   end
 
