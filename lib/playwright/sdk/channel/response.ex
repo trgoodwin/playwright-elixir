@@ -100,6 +100,18 @@ defmodule Playwright.SDK.Channel.Response do
     Enum.map(value, fn %{guid: guid} -> Channel.Catalog.get(catalog, guid) end)
   end
 
+  defp parse([{:artifact, %{guid: guid}}, {:entries, _entries}], catalog) do
+    Channel.Catalog.get(catalog, guid)
+  end
+
+  defp parse([{:entries, _entries}, {:artifact, %{guid: guid}}], catalog) do
+    Channel.Catalog.get(catalog, guid)
+  end
+
+  defp parse([{:entries, entries}], _catalog) do
+    entries
+  end
+
   defp parse([{:value, value}], _catalog) do
     value
   end
@@ -110,6 +122,10 @@ defmodule Playwright.SDK.Channel.Response do
 
   defp parse([{_key, nil}], _catalog) do
     nil
+  end
+
+  defp parse([{_key, value}], _catalog) do
+    value
   end
 
   defp parse([], _catalog) do

@@ -167,6 +167,7 @@ defmodule Playwright.BrowserContext do
   @property :browser
   @property :owner_page
   @property :routes
+  @property :tracing
 
   @typedoc "Recognized cookie fields"
   @type cookie :: %{
