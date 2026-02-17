@@ -92,15 +92,10 @@ defmodule Playwright.BrowserType do
   def connect_over_cdp(client, endpoint_url, options)
       when is_atom(client) and client in [:chromium] do
     with {:ok, session} <- new_session(Transport.Driver, options),
-         browser_type <- chromium(session),
+         browser_type <- browser_type_for(session, client),
          cdp_browser <- _connect_over_cdp(browser_type, endpoint_url, options) do
       {session, cdp_browser}
     end
-  end
-
-  def connect_over_cdp(client, _endpoint_url, _options)
-      when is_atom(client) and client in [:firefox, :webkit] do
-    raise RuntimeError, message: "not yet implemented"
   end
 
   defp _connect_over_cdp(%BrowserType{session: session, guid: guid}, endpoint_url, options) do
@@ -160,17 +155,12 @@ defmodule Playwright.BrowserType do
   end
 
   def launch(client, options)
-      when is_atom(client) and client in [:chromium] do
+      when is_atom(client) and client in [:chromium, :firefox, :webkit] do
     with {:ok, session} <- new_session(Transport.Driver, options),
-         browser_type <- chromium(session),
+         browser_type <- browser_type_for(session, client),
          browser <- browser(browser_type, options) do
       {session, browser}
     end
-  end
-
-  def launch(client, _options)
-      when is_atom(client) and client in [:firefox, :webkit] do
-    raise RuntimeError, message: "not yet implemented: #{inspect(client)}"
   end
 
   def launch(options, _) do
@@ -196,9 +186,9 @@ defmodule Playwright.BrowserType do
     Channel.post(browser_type.session, {:guid, browser_type.guid}, :launch, launch_options)
   end
 
-  defp chromium(session) do
+  defp browser_type_for(session, client) when client in [:chromium, :firefox, :webkit] do
     playwright = playwright(session)
-    %{guid: guid} = playwright.chromium
+    %{guid: guid} = Map.get(playwright, client)
     Channel.find(session, {:guid, guid})
   end
 
