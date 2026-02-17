@@ -29,6 +29,7 @@ defmodule Playwright.SDK.Channel do
 
   def post(session, {:guid, guid}, action, params \\ %{}) when is_binary(guid) when is_pid(session) do
     connection = Session.connection(session)
+    params = ensure_timeout(params)
     message = Message.new(guid, action, params)
 
     # IO.inspect(message, label: "---> Channel.post/4")
@@ -103,6 +104,12 @@ defmodule Playwright.SDK.Channel do
       _ ->
         event
     end
+  end
+
+  # Playwright v1.58+ requires `timeout` as a mandatory float in all protocol
+  # method params. Ensure it's always present with the default of 30_000ms.
+  defp ensure_timeout(params) when is_map(params) do
+    Map.put_new(params, :timeout, 30_000)
   end
 
   defp load_preview(handle, timeout \\ DateTime.utc_now() |> DateTime.add(5, :second))

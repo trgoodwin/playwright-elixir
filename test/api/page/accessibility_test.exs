@@ -2,6 +2,10 @@ defmodule Playwright.Page.AccessibilityTest do
   use Playwright.TestCase, async: true
   # doctest Playwright.Page.Accessibility
 
+  # Playwright v1.58 removed the accessibilitySnapshot protocol method.
+  # The accessibility API has been replaced by ariaSnapshot.
+  @moduletag :skip
+
   alias Playwright.Page
 
   describe "Accessibility.snapshot/1" do
