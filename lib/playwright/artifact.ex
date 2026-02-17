@@ -22,4 +22,9 @@ defmodule Playwright.Artifact do
   def failure(%Artifact{session: session, guid: guid}) do
     Channel.post(session, {:guid, guid}, :failure)
   end
+
+  def cancel(%Artifact{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :cancel)
+    :ok
+  end
 end

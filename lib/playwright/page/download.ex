@@ -1,30 +1,61 @@
 defmodule Playwright.Download do
   @moduledoc false
 
-  # @spec cancel(t()) :: :ok
-  # def cancel(download)
+  alias Playwright.Artifact
 
-  # @spec create_read_stream(t()) :: readable()
-  # def create_read_stream(download)
+  @enforce_keys [:page, :url, :suggested_filename, :artifact]
+  defstruct [:page, :url, :suggested_filename, :artifact]
 
-  # @spec delete(t()) :: :ok
-  # def delete(download)
+  @type t :: %__MODULE__{
+          page: Playwright.Page.t(),
+          url: binary(),
+          suggested_filename: binary(),
+          artifact: Artifact.t()
+        }
 
-  # @spec failure(t()) :: nil | binary()
-  # def failure(download)
+  @doc false
+  def from_event(page, %{url: url, suggestedFilename: suggested_filename, artifact: artifact}) do
+    %__MODULE__{
+      page: page,
+      url: url,
+      suggested_filename: suggested_filename,
+      artifact: artifact
+    }
+  end
 
-  # @spec page(t()) :: Page.t()
-  # def page(download)
+  @spec cancel(t()) :: :ok
+  def cancel(%__MODULE__{artifact: artifact}) do
+    Artifact.cancel(artifact)
+  end
 
-  # @spec path(t()) :: binary()
-  # def path(download)
+  @spec delete(t()) :: :ok
+  def delete(%__MODULE__{artifact: artifact}) do
+    Artifact.delete(artifact)
+    :ok
+  end
 
-  # @spec save_as(t(), binary()) :: :ok
-  # def save_as(download, path)
+  @spec failure(t()) :: binary() | nil
+  def failure(%__MODULE__{artifact: artifact}) do
+    Artifact.failure(artifact)
+  end
 
-  # @spec suggested_filename(t()) :: binary()
-  # def suggested_filename(download)
+  @spec page(t()) :: Playwright.Page.t()
+  def page(%__MODULE__{page: page}), do: page
 
-  # @spec url(t()) :: binary()
-  # def url(download)
+  @spec path(t()) :: binary()
+  def path(%__MODULE__{artifact: artifact}) do
+    artifact.path
+  end
+
+  @spec save_as(t(), binary()) :: :ok
+  def save_as(%__MODULE__{artifact: artifact}, path) do
+    Artifact.save_as(artifact, path)
+    :ok
+  end
+
+  @spec suggested_filename(t()) :: binary()
+  def suggested_filename(%__MODULE__{suggested_filename: name}), do: name
+
+  @spec url(t()) :: binary()
+  def url(%__MODULE__{url: url}), do: url
 end
