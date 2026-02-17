@@ -56,11 +56,15 @@ defmodule Playwright.Frame do
 
   # ---
 
-  # @spec add_script_tag(Frame.t(), options()) :: ElementHandle.t()
-  # def add_script_tag(frame, options \\ %{})
+  @spec add_script_tag(Frame.t(), options()) :: ElementHandle.t()
+  def add_script_tag(%Frame{session: session} = frame, options \\ %{}) do
+    Channel.post(session, {:guid, frame.guid}, :add_script_tag, options)
+  end
 
-  # @spec add_style_tag(Frame.t(), options()) :: ElementHandle.t()
-  # def add_style_tag(frame, options \\ %{})
+  @spec add_style_tag(Frame.t(), options()) :: ElementHandle.t()
+  def add_style_tag(%Frame{session: session} = frame, options \\ %{}) do
+    Channel.post(session, {:guid, frame.guid}, :add_style_tag, options)
+  end
 
   # ---
 
@@ -960,13 +964,56 @@ defmodule Playwright.Frame do
   # @spec wait_for_timeout(Frame.t(), number()) :: :ok
   # def wait_for_timeout(frame, timeout)
 
-  # @spec wait_for_url(Frame.t(), binary(), options()) :: :ok
-  # def wait_for_url(frame, url, options \\ %{})
+  @doc """
+  Waits for the frame to navigate to a URL matching the pattern.
+
+  If the frame's current URL already matches the pattern, returns immediately.
+  Otherwise, polls until the URL matches or the timeout is exceeded.
+
+  ## Returns
+
+    - `:ok`
+    - `{:error, :timeout}`
+
+  ## Arguments
+
+  | key/name      | type   |            | description |
+  | ------------- | ------ | ---------- | ----------- |
+  | `url`         | param  | `binary()` | A URL string to match against. |
+  | `:timeout`    | option | `number()` | Maximum time in milliseconds. `(default: 30 seconds)` |
+  | `:wait_until` | option | `binary()` | "load", "domcontentloaded", "networkidle", or "commit". `(default: "load")` |
+  """
+  @spec wait_for_url(t(), binary(), options()) :: :ok | {:error, :timeout}
+  def wait_for_url(%Frame{} = frame, url_pattern, options \\ %{}) do
+    timeout = Map.get(options, :timeout, 30_000)
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    do_wait_for_url(frame, url_pattern, deadline)
+  end
 
   # ---
 
   # private
   # ---------------------------------------------------------------------------
+
+  defp do_wait_for_url(frame, url_pattern, deadline) do
+    current_url = url(frame)
+
+    if url_matches?(current_url, url_pattern) do
+      :ok
+    else
+      if System.monotonic_time(:millisecond) > deadline do
+        {:error, :timeout}
+      else
+        Process.sleep(100)
+        do_wait_for_url(frame, url_pattern, deadline)
+      end
+    end
+  end
+
+  defp url_matches?(current_url, pattern) do
+    current_url == pattern or String.contains?(current_url, pattern)
+  end
 
   defp normalize_file_payloads(files) when is_binary(files) do
     normalize_file_payloads([files])

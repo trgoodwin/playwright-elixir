@@ -68,4 +68,58 @@ defmodule Playwright.NavigationTest do
       assert Response.ok(response)
     end
   end
+
+  describe "Page.go_back/2" do
+    test "navigates back in history", %{assets: assets, page: page} do
+      Page.goto(page, assets.empty)
+      Page.goto(page, assets.dom)
+
+      response = Page.go_back(page)
+      assert is_nil(response) or is_struct(response, Response)
+
+      assert Page.url(page) =~ "/empty.html"
+    end
+
+    test "returns nil when there is no history to go back", %{page: page} do
+      response = Page.go_back(page)
+      assert is_nil(response)
+    end
+  end
+
+  describe "Page.go_forward/2" do
+    test "navigates forward in history", %{assets: assets, page: page} do
+      Page.goto(page, assets.empty)
+      Page.goto(page, assets.dom)
+
+      Page.go_back(page)
+      assert Page.url(page) =~ "/empty.html"
+
+      response = Page.go_forward(page)
+      assert is_nil(response) or is_struct(response, Response)
+
+      assert Page.url(page) =~ "/dom.html"
+    end
+
+    test "returns nil when there is no history to go forward", %{page: page} do
+      response = Page.go_forward(page)
+      assert is_nil(response)
+    end
+  end
+
+  describe "Page.wait_for_url/3" do
+    test "resolves immediately when URL already matches", %{assets: assets, page: page} do
+      Page.goto(page, assets.empty)
+      assert :ok = Page.wait_for_url(page, "/empty.html")
+    end
+
+    test "waits for navigation to the target URL", %{assets: assets, page: page} do
+      Page.goto(page, assets.empty)
+
+      # Start a navigation in the background via JS
+      Page.evaluate(page, "() => { setTimeout(() => window.location.href = '#{assets.dom}', 200) }")
+
+      assert :ok = Page.wait_for_url(page, "/dom.html")
+      assert Page.url(page) =~ "/dom.html"
+    end
+  end
 end

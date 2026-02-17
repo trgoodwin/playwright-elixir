@@ -58,6 +58,20 @@ defmodule Playwright.Page do
   # @property :touchscreen
   # ---
 
+  # Override the auto-generated `is_closed/1` to handle the case where the page
+  # has been disposed and removed from the catalog after closing.
+  defoverridable is_closed: 1
+
+  @spec is_closed(t()) :: boolean()
+  def is_closed(%Page{is_closed: true}), do: true
+
+  def is_closed(%Page{session: session, guid: guid}) do
+    case Channel.find(session, {:guid, guid}, %{timeout: 10}) do
+      %Page{is_closed: closed} -> closed == true
+      _ -> true
+    end
+  end
+
   @type dimensions :: map()
   @type expression :: binary()
   @type function_or_options :: fun() | options() | nil
@@ -153,14 +167,21 @@ defmodule Playwright.Page do
   # @spec add_locator_handler(t(), Locator.t(), (Locator.t() -> any()), options()) :: :ok
   # def add_locator_handler(page, locator, func, options \\ %{})
 
-  # @spec add_script_tag(Page.t(), options()) :: ElementHandle.t()
-  # def add_script_tag(page, options \\ %{})
+  @spec add_script_tag(Page.t(), options()) :: ElementHandle.t()
+  def add_script_tag(%Page{} = page, options \\ %{}) do
+    main_frame(page) |> Frame.add_script_tag(options)
+  end
 
-  # @spec add_style_tag(Page.t(), options()) :: ElementHandle.t()
-  # def add_style_tag(page, options \\ %{})
+  @spec add_style_tag(Page.t(), options()) :: ElementHandle.t()
+  def add_style_tag(%Page{} = page, options \\ %{}) do
+    main_frame(page) |> Frame.add_style_tag(options)
+  end
 
-  # @spec bring_to_front(t()) :: :ok
-  # def bring_to_front(page)
+  @spec bring_to_front(t()) :: :ok
+  def bring_to_front(%Page{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :bring_to_front)
+    :ok
+  end
 
   # ---
 
@@ -275,8 +296,11 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec emulate_media(t(), options()) :: :ok
-  # def emulate_media(page, options \\ %{})
+  @spec emulate_media(t(), options()) :: :ok
+  def emulate_media(%Page{session: session, guid: guid}, options \\ %{}) do
+    Channel.post(session, {:guid, guid}, :emulate_media, options)
+    :ok
+  end
 
   # ---
 
@@ -465,11 +489,61 @@ defmodule Playwright.Page do
     main_frame(page) |> Frame.get_by_title(text, options)
   end
 
-  # @spec go_back(t(), options()) :: Response.t() | nil
-  # def go_back(page, options \\ %{})
+  @doc """
+  Navigate to the previous page in history.
 
-  # @spec go_forward(t(), options()) :: Response.t() | nil
-  # def go_forward(page, options \\ %{})
+  Returns the main resource response. In case of multiple redirects, the
+  navigation will resolve with the response of the last redirect. If there is
+  no previous page in history, returns `nil`.
+
+  ## Returns
+
+    - `Playwright.Response.t() | nil`
+
+  ## Arguments
+
+  | key/name      | type   |            | description |
+  | ------------- | ------ | ---------- | ----------- |
+  | `:timeout`    | option | `number()` | Maximum time in milliseconds. Pass `0` to disable timeout. `(default: 30 seconds)` |
+  | `:wait_until` | option | `binary()` | "load", "domcontentloaded", "networkidle", or "commit". When to consider the operation as having succeeded. `(default: "load")` |
+  """
+  @spec go_back(t(), options()) :: Response.t() | nil
+  def go_back(%Page{session: session} = page, options \\ %{}) do
+    params = Map.merge(%{timeout: 30_000, wait_until: "load"}, options)
+
+    case Channel.post(session, {:guid, page.guid}, :go_back, params) do
+      %Response{} = response -> response
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Navigate to the next page in history.
+
+  Returns the main resource response. In case of multiple redirects, the
+  navigation will resolve with the response of the last redirect. If there is
+  no next page in history, returns `nil`.
+
+  ## Returns
+
+    - `Playwright.Response.t() | nil`
+
+  ## Arguments
+
+  | key/name      | type   |            | description |
+  | ------------- | ------ | ---------- | ----------- |
+  | `:timeout`    | option | `number()` | Maximum time in milliseconds. Pass `0` to disable timeout. `(default: 30 seconds)` |
+  | `:wait_until` | option | `binary()` | "load", "domcontentloaded", "networkidle", or "commit". When to consider the operation as having succeeded. `(default: "load")` |
+  """
+  @spec go_forward(t(), options()) :: Response.t() | nil
+  def go_forward(%Page{session: session} = page, options \\ %{}) do
+    params = Map.merge(%{timeout: 30_000, wait_until: "load"}, options)
+
+    case Channel.post(session, {:guid, page.guid}, :go_forward, params) do
+      %Response{} = response -> response
+      _ -> nil
+    end
+  end
 
   # ---
 
@@ -487,9 +561,6 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec is_closed(t()) :: boolean()
-  # def is_closed(page)
-
   # ---
 
   @spec locator(t(), selector()) :: Playwright.Locator.t()
@@ -500,8 +571,15 @@ defmodule Playwright.Page do
   # @spec main_frame(t()) :: Frame.t()
   # def main_frame(page)
 
-  # @spec opener(t()) :: Frame.t() | nil
-  # def opener(page)
+  @spec opener(t()) :: t() | nil
+  def opener(%Page{session: session, guid: guid}) do
+    page = Channel.find(session, {:guid, guid})
+
+    case page.initializer[:opener] do
+      %{guid: opener_guid} -> Channel.find(session, {:guid, opener_guid})
+      _ -> nil
+    end
+  end
 
   # @spec pause(t()) :: :ok
   # def pause(page)
@@ -551,8 +629,11 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec pdf(t(), options()) :: binary() # ?
-  # def pdf(page, options \\ %{})
+  @spec pdf(t(), options()) :: binary()
+  def pdf(%Page{session: session, guid: guid}, options \\ %{}) do
+    Channel.post(session, {:guid, guid}, :pdf, options)
+    |> Base.decode64!()
+  end
 
   # ---
 
@@ -725,8 +806,11 @@ defmodule Playwright.Page do
   # @spec video(t()) :: Video.t() | nil
   # def video(page, handler \\ nil)
 
-  # @spec viewport_size(t()) :: dimensions() | nil
-  # def viewport_size(page)
+  @spec viewport_size(t()) :: dimensions() | nil
+  def viewport_size(%Page{session: session, guid: guid}) do
+    page = Channel.find(session, {:guid, guid})
+    page.initializer[:viewport_size]
+  end
 
   # @spec wait_for_event(t(), binary(), map()) :: map()
   # def wait_for_event(page, event, options \\ %{})
@@ -763,8 +847,28 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec wait_for_url(Page.t(), binary(), options()) :: :ok
-  # def wait_for_url(page, url, options \\ %{})
+  @doc """
+  Waits for the page to navigate to a URL matching the pattern.
+
+  This is a shortcut for the main frame's `Playwright.Frame.wait_for_url/3`.
+
+  ## Returns
+
+    - `:ok`
+    - `{:error, :timeout}`
+
+  ## Arguments
+
+  | key/name      | type   |            | description |
+  | ------------- | ------ | ---------- | ----------- |
+  | `url`         | param  | `binary()` | A URL string to match against. |
+  | `:timeout`    | option | `number()` | Maximum time in milliseconds. Pass `0` to disable timeout. `(default: 30 seconds)` |
+  | `:wait_until` | option | `binary()` | "load", "domcontentloaded", "networkidle", or "commit". When to consider the operation as having succeeded. `(default: "load")` |
+  """
+  @spec wait_for_url(t(), binary(), options()) :: :ok | {:error, :timeout}
+  def wait_for_url(%Page{} = page, url, options \\ %{}) do
+    main_frame(page) |> Frame.wait_for_url(url, options)
+  end
 
   # @spec workers(t()) :: [Worker.t()]
   # def workers(page)
