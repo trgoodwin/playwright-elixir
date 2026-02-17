@@ -1,21 +1,46 @@
-defmodule Playwright.Mouse do
+defmodule Playwright.Page.Mouse do
   @moduledoc false
 
-  # @spec click(t(), number(), number(), options()) :: :ok
-  # def click(mouse, x, y, options \\ %{})
+  use Playwright.SDK.ChannelOwner
+  alias Playwright.Page
 
-  # @spec dblclick(t(), number(), number(), options()) :: :ok
-  # def dblclick(mouse, x, y, options \\ %{})
+  @type options :: map()
 
-  # @spec down(t(), options()) :: :ok
-  # def down(mouse, options \\ %{})
+  # API
+  # ---------------------------------------------------------------------------
 
-  # @spec move(t(), number(), number(), options()) :: :ok
-  # def move(mouse, x, y, options \\ %{})
+  @spec click(Page.t(), number(), number(), options()) :: Page.t()
+  def click(page, x, y, options \\ %{}) do
+    params = Map.merge(%{x: x, y: y, delay: 0, button: "left", click_count: 1}, options)
+    post!(page, :mouse_click, params)
+  end
 
-  # @spec up(t(), options()) :: :ok
-  # def up(mouse, options \\ %{})
+  @spec dblclick(Page.t(), number(), number(), options()) :: Page.t()
+  def dblclick(page, x, y, options \\ %{}) do
+    params = Map.merge(%{x: x, y: y, delay: 0, button: "left", click_count: 2}, options)
+    post!(page, :mouse_click, params)
+  end
 
-  # @spec wheel(t(), number(), number()) :: :ok
-  # def wheel(mouse, delta_x, delta_y)
+  @spec down(Page.t(), options()) :: Page.t()
+  def down(page, options \\ %{}) do
+    params = Map.merge(%{button: "left", click_count: 1}, options)
+    post!(page, :mouse_down, params)
+  end
+
+  @spec move(Page.t(), number(), number(), options()) :: Page.t()
+  def move(page, x, y, options \\ %{}) do
+    params = Map.merge(%{x: x, y: y, steps: 1}, options)
+    post!(page, :mouse_move, params)
+  end
+
+  @spec up(Page.t(), options()) :: Page.t()
+  def up(page, options \\ %{}) do
+    params = Map.merge(%{button: "left", click_count: 1}, options)
+    post!(page, :mouse_up, params)
+  end
+
+  @spec wheel(Page.t(), number(), number()) :: Page.t()
+  def wheel(page, delta_x, delta_y) do
+    post!(page, :mouse_wheel, %{delta_x: delta_x, delta_y: delta_y})
+  end
 end
