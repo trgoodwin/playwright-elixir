@@ -1,7 +1,7 @@
 defmodule Playwright.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/mechanical-orchard/playwright-elixir"
+  @source_url "https://github.com/trgoodwin/playwright-elixir"
 
   def project do
     [

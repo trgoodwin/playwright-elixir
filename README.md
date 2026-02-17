@@ -1,10 +1,10 @@
 # Playwright for Elixir
 
-**NOTE:** This package is currently in "preview" (or "alpha"). The features are not yet at parity with other Playwright implementations. Once `playwright-elixir` is at or near parity with [`playwright`](https://github.com/microsoft/playwright), the version number will be updated to mirror the supported version of `playwright`.
+**NOTE:** This package tracks Playwright v1.58.x. While not yet at full parity with the official Playwright API, significant coverage has been achieved across Page, Frame, Locator, Browser, BrowserContext, Request, Response, Route, ElementHandle, JSHandle, Worker, Mouse, Keyboard, Touchscreen, Download, FileChooser, Video, WebSocket, Tracing, Selectors, Coverage, Clock, and more.
 
 ## Overview
 
-[Playwright](https://github.com/mechanical-orchard/playwright-elixir) is an Elixir library to automate Chromium, Firefox and WebKit with a single API. Playwright is built to enable cross-browser web automation that is **ever-green**, **capable**, **reliable** and **fast**. [See how Playwright is better](https://playwright.dev/docs/why-playwright).
+[Playwright](https://github.com/trgoodwin/playwright-elixir) is an Elixir library to automate Chromium, Firefox and WebKit with a single API. Playwright is built to enable cross-browser web automation that is **ever-green**, **capable**, **reliable** and **fast**. [See how Playwright is better](https://playwright.dev/docs/why-playwright).
 
 ## Installation
 
