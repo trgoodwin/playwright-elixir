@@ -780,7 +780,12 @@ defmodule Playwright.Locator do
   end
 
   defp escape_for_text_selector(text) do
-    "\"#{text}\""
+    escaped =
+      text
+      |> String.replace("\\", "\\\\")
+      |> String.replace("\"", "\\\"")
+
+    "\"#{escaped}\""
   end
 
   defp escape_for_attribute_selector(value) do
