@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage: bin/dev/fetch-assets <branch>
+# Example: bin/dev/fetch-assets release-1.58
+
+branch="${1:?Usage: bin/dev/fetch-assets <branch>}"
+repo_root="$(git rev-parse --show-toplevel)"
+
+echo "Fetching Playwright test assets from branch: ${branch}"
+
+cd "${repo_root}"
+
+if ! git remote | grep -q "playwright-upstream"; then
+  git remote add --fetch --no-tags playwright-upstream https://github.com/microsoft/playwright.git
+else
+  git fetch playwright-upstream
+fi
+
+rm -rf test/fixtures/assets
+git read-tree --prefix=test/fixtures/assets -u "playwright-upstream/${branch}:tests/assets"
+
+# Remove oversized directories not needed for tests
+rm -rf test/fixtures/assets/selenium-grid
+
+echo "Assets updated from ${branch}"

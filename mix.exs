@@ -54,8 +54,7 @@ defmodule Playwright.MixProject do
       {:gun, "~> 2.2.0"},
       {:jason, "~> 1.4"},
       {:mix_audit, "~> 1.0", only: [:dev, :test], runtime: false},
-      # {:playwright_assets, "1.49.1", only: [:test]},
-      {:playwright_assets, path: "../playwright-assets", only: [:test]},
+      {:plug_cowboy, "~> 2.7", only: [:test]},
       {:recase, "~> 0.7"},
       {:uuid, "~> 1.1"},
       {:httpoison, "~> 1.8", only: [:test]}

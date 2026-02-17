@@ -12,6 +12,5 @@ config :playwright, PlaywrightTest, transport: String.to_atom(System.get_env("PL
 if config_env() == :test do
   config :logger, level: :info
 
-  config :playwright_assets,
-    port: 4002
+  config :playwright, :test_assets_port, 4002
 end
