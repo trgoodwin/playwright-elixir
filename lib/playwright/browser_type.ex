@@ -98,6 +98,11 @@ defmodule Playwright.BrowserType do
     end
   end
 
+  def connect_over_cdp(client, _endpoint_url, _options)
+      when is_atom(client) and client in [:firefox, :webkit] do
+    raise ArgumentError, "connect_over_cdp is only supported for :chromium (Chrome DevTools Protocol)"
+  end
+
   defp _connect_over_cdp(%BrowserType{session: session, guid: guid}, endpoint_url, options) do
     params = Map.merge(%{"endpointURL" => endpoint_url}, options)
     Channel.post(session, {:guid, guid}, "connectOverCDP", params)
