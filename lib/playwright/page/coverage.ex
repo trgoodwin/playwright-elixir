@@ -1,15 +1,30 @@
 defmodule Playwright.Coverage do
   @moduledoc false
 
-  # @spec start_css_coverage(t(), options()) :: :ok
-  # def start_css_coverage(coverage, options \\ %{})
+  alias Playwright.Page
+  alias Playwright.SDK.Channel
 
-  # @spec start_js_coverage(t(), options()) :: :ok
-  # def start_js_coverage(coverage, options \\ %{})
+  @type options :: map()
 
-  # @spec stop_css_coverage(t()) :: result()
-  # def stop_css_coverage(coverage)
+  @spec start_js_coverage(Page.t(), options()) :: :ok
+  def start_js_coverage(%Page{} = page, options \\ %{}) do
+    Channel.post(page.session, {:guid, page.guid}, "startJSCoverage", options)
+    :ok
+  end
 
-  # @spec stop_js_coverage(t()) :: result()
-  # def stop_js_coverage(coverage)
+  @spec stop_js_coverage(Page.t()) :: [map()]
+  def stop_js_coverage(%Page{} = page) do
+    Channel.post(page.session, {:guid, page.guid}, "stopJSCoverage")
+  end
+
+  @spec start_css_coverage(Page.t(), options()) :: :ok
+  def start_css_coverage(%Page{} = page, options \\ %{}) do
+    Channel.post(page.session, {:guid, page.guid}, "startCSSCoverage", options)
+    :ok
+  end
+
+  @spec stop_css_coverage(Page.t()) :: [map()]
+  def stop_css_coverage(%Page{} = page) do
+    Channel.post(page.session, {:guid, page.guid}, "stopCSSCoverage")
+  end
 end
