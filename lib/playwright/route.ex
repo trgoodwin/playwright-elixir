@@ -11,8 +11,15 @@ defmodule Playwright.Route do
 
   # ---
 
-  # @spec abort(t(), binary()) :: :ok
-  # def abort(route, error_code \\ nil)
+  @spec abort(t(), binary()) :: :ok
+  def abort(route, error_code \\ "failed")
+
+  def abort(%Route{session: session} = route, error_code) do
+    catalog = Channel.Session.catalog(session)
+    request = Channel.Catalog.get(catalog, route.request.guid)
+    Channel.post(session, {:guid, route.guid}, :abort, %{error_code: error_code, request_url: request.url})
+    :ok
+  end
 
   # ---
 
@@ -30,11 +37,37 @@ defmodule Playwright.Route do
 
   # ---
 
-  # @spec fallback(t(), options()) :: :ok
-  # def fallback(route, options \\ %{})
+  @spec fallback(t(), options()) :: :ok
+  def fallback(route, options \\ %{})
 
-  # @spec fetch(t(), options()) :: APIResponse.t()
-  # def fetch(route, options \\ %{})
+  def fallback(%Route{session: session} = route, options) do
+    catalog = Channel.Session.catalog(session)
+    request = Channel.Catalog.get(catalog, route.request.guid)
+    params = Map.merge(options, %{is_fallback: true, request_url: request.url})
+    Channel.post(session, {:guid, route.guid}, :continue, params)
+    :ok
+  end
+
+  # ---
+
+  @spec fetch(t(), options()) :: map()
+  def fetch(route, options \\ %{})
+
+  def fetch(%Route{session: session} = route, options) do
+    catalog = Channel.Session.catalog(session)
+    request = Channel.Catalog.get(catalog, route.request.guid)
+
+    params = Map.merge(%{request_url: request.url}, options)
+
+    params =
+      if Map.has_key?(params, :headers) do
+        %{params | headers: serialize_headers(params.headers)}
+      else
+        params
+      end
+
+    Channel.post(session, {:guid, route.guid}, :fetch, params)
+  end
 
   # ---
 
