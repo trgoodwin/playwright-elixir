@@ -328,6 +328,24 @@ defmodule Playwright.BrowserContext do
   # ---
 
   @doc """
+  Returns the `Playwright.Clock` instance associated with this context.
+
+  The Clock module already takes `BrowserContext.t()` as its first argument,
+  so this accessor simply returns the context itself.
+  """
+  @spec clock(t()) :: t()
+  def clock(%BrowserContext{} = context), do: context
+
+  @doc """
+  Returns the `Playwright.APIRequestContext` associated with this context.
+  """
+  @spec request(t()) :: Playwright.APIRequestContext.t()
+  def request(%BrowserContext{session: session} = context) do
+    Channel.list(session, {:guid, context.browser.guid}, "APIRequestContext")
+    |> List.first()
+  end
+
+  @doc """
   Clears `Playwright.BrowserContext` cookies.
   """
   @spec clear_cookies(t()) :: :ok

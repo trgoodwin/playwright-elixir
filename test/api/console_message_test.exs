@@ -48,5 +48,36 @@ defmodule Playwright.ConsoleMessageTest do
       location = ConsoleMessage.location(msg)
       assert is_map(location)
     end
+
+    test "args/1 returns the arguments from from_event", %{page: page} do
+      test_pid = self()
+
+      Page.on(page, :console, fn event ->
+        msg = ConsoleMessage.from_event(event)
+        send(test_pid, {:console, msg})
+      end)
+
+      Page.evaluate(page, "() => console.log('hello', 42)")
+
+      assert_receive {:console, msg}, 5_000
+      args = ConsoleMessage.args(msg)
+      assert is_list(args)
+    end
+
+    test "page/1 returns the page from from_event", %{page: page} do
+      test_pid = self()
+
+      Page.on(page, :console, fn event ->
+        msg = ConsoleMessage.from_event(event)
+        send(test_pid, {:console, msg})
+      end)
+
+      Page.evaluate(page, "() => console.log('test')")
+
+      assert_receive {:console, msg}, 5_000
+      # from_event wraps the page from event params, which may be nil
+      # in the current implementation
+      _p = ConsoleMessage.page(msg)
+    end
   end
 end

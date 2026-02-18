@@ -51,5 +51,20 @@ defmodule Playwright.DialogTest do
       assert Dialog.default_value(dialog) == "default"
       assert result == "my answer"
     end
+
+    test "page/1 returns the associated Page", %{page: page} do
+      test_pid = self()
+
+      Page.on(page, :dialog, fn %{params: %{dialog: dialog}} ->
+        send(test_pid, {:dialog, dialog})
+        Task.start(fn -> Dialog.accept(dialog) end)
+      end)
+
+      Page.evaluate(page, "() => alert('test')")
+
+      assert_receive {:dialog, dialog}, 5_000
+      dialog_page = Dialog.page(dialog)
+      assert %Page{} = dialog_page
+    end
   end
 end

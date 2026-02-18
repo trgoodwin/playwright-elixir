@@ -9,38 +9,69 @@ defmodule Playwright.APIResponse do
   @property :status_text
   @property :url
 
-  # @spec body(t()) :: binary() # or, equivalent of `Buffer`
-  # def body(response)
+  @doc """
+  Returns the response body as a binary.
+  """
+  @spec body(t()) :: binary()
+  def body(%APIResponse{session: session} = response) do
+    context = find_request_context(response)
 
-  # @spec dispose(t()) :: :ok
-  # def dispose(response)
+    case Channel.post(session, {:guid, context.guid}, :fetch_response_body, %{fetchUid: response.fetchUid}) do
+      nil -> ""
+      data when is_binary(data) -> Base.decode64!(data)
+      other -> other
+    end
+  end
 
-  # @spec headers(t()) :: map()
-  # def headers(response)
+  @doc """
+  Returns the response body as text.
+  """
+  @spec text(t()) :: binary()
+  def text(%APIResponse{} = response) do
+    body(response)
+  end
 
-  # @spec headers(t()) :: map()
-  # def headers(response)
+  @doc """
+  Returns the response body parsed as JSON.
+  """
+  @spec json(t()) :: any()
+  def json(%APIResponse{} = response) do
+    text(response) |> Jason.decode!()
+  end
 
-  # @spec headers_list(APIResponse.t()) :: [map()]
-  # def headers_list(response)
+  @doc """
+  Returns the response headers as a list of `%{name: name, value: value}` maps.
+  """
+  @spec headers_array(t()) :: [map()]
+  def headers_array(%APIResponse{} = response) do
+    response = Channel.find(response.session, {:guid, response.guid})
 
-  # @spec json(t()) :: binary() # "serializable"; so, maybe map()?
-  # def json(response)
+    (response.headers || [])
+    |> Enum.map(fn
+      %{name: _, value: _} = h -> h
+      {k, v} -> %{name: to_string(k), value: to_string(v)}
+    end)
+  end
+
+  @doc """
+  Disposes of the response body. It is an error to access the body after disposal.
+  """
+  @spec dispose(t()) :: :ok
+  def dispose(%APIResponse{session: session} = response) do
+    context = find_request_context(response)
+    Channel.post(session, {:guid, context.guid}, :dispose_api_response, %{fetchUid: response.fetchUid})
+    :ok
+  end
 
   @spec ok(t()) :: boolean()
   def ok(%APIResponse{} = response) do
     response.status === 0 || (response.status >= 200 && response.status <= 299)
   end
 
-  # @spec status(t()) :: number()
-  # def status(response)
+  # private
+  # ---------------------------------------------------------------------------
 
-  # @spec status_text(t()) :: binary()
-  # def status_text(response)
-
-  # @spec text(t()) :: binary()
-  # def text(response)
-
-  # @spec url(t()) :: binary()
-  # def url(response)
+  defp find_request_context(%APIResponse{session: session, parent: parent}) do
+    Channel.find(session, {:guid, parent.guid})
+  end
 end

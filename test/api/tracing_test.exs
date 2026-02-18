@@ -68,5 +68,36 @@ defmodule Playwright.TracingTest do
       Page.close(page)
       BrowserContext.close(context)
     end
+
+    @tag exclude: [:page]
+    test "group and group_end within a trace", %{browser: browser, assets: assets} do
+      context = Browser.new_context(browser)
+      page = BrowserContext.new_page(context)
+
+      Tracing.start(context, %{screenshots: true, snapshots: true})
+      assert :ok = Tracing.group(context, "my-group")
+      Page.goto(page, assets.empty)
+      assert :ok = Tracing.group_end(context)
+      Tracing.stop(context)
+
+      Page.close(page)
+      BrowserContext.close(context)
+    end
+
+    @tag exclude: [:page]
+    test "group and group_end via Tracing struct", %{browser: browser, assets: assets} do
+      context = Browser.new_context(browser)
+      tracing = BrowserContext.tracing(context)
+      page = BrowserContext.new_page(context)
+
+      Tracing.start(tracing, %{screenshots: true, snapshots: true})
+      assert :ok = Tracing.group(tracing, "test-group")
+      Page.goto(page, assets.empty)
+      assert :ok = Tracing.group_end(tracing)
+      Tracing.stop(tracing)
+
+      Page.close(page)
+      BrowserContext.close(context)
+    end
   end
 end

@@ -38,8 +38,14 @@ defmodule Playwright.JSHandle do
     nil
   end
 
-  # @spec dispose(JSHandle.t()) :: :ok
-  # def dispose(handle)
+  @doc """
+  Releases the handle. After disposal, the handle can no longer be used.
+  """
+  @spec dispose(t()) :: :ok
+  def dispose(%{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :dispose)
+    :ok
+  end
 
   def evaluate(%{session: session} = handle, expression, arg \\ nil) do
     params = %{
@@ -90,14 +96,28 @@ defmodule Playwright.JSHandle do
     Channel.post(session, {:guid, handle.guid}, :evaluate_expression_handle, params)
   end
 
-  # @spec get_properties(JSHandle.t()) :: [property()]
-  # def get_properties(handle)
+  @doc """
+  Returns a map of handle property names to JSHandle instances.
+  """
+  @spec get_properties(t()) :: map()
+  def get_properties(%{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, "getPropertyList")
+  end
 
-  # @spec get_property(JSHandle.t()) :: property()
-  # def get_property(handle)
+  @doc """
+  Returns a JSON representation of the object.
 
-  # @spec json_value(JSHandle.t()) :: property()
-  # def json_value(handle)
+  If the object has a `toJSON` function, it will not be called.
+
+  > NOTE: The method will return an empty JSON object if the referenced
+  > object is not stringifiable. It will throw an error if the object has
+  > circular references.
+  """
+  @spec json_value(t()) :: any()
+  def json_value(%{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, "jsonValue")
+    |> Helpers.Serialization.deserialize()
+  end
 
   def string(%{} = handle) do
     handle.preview

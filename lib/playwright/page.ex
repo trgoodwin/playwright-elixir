@@ -164,8 +164,62 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec add_locator_handler(t(), Locator.t(), (Locator.t() -> any()), options()) :: :ok
-  # def add_locator_handler(page, locator, func, options \\ %{})
+  @doc """
+  When testing a web page, sometimes unexpected overlays like a "Sign up"
+  dialog appear and block actions you want to perform. These overlays don't
+  always show up in the same way or at the same time, making them tricky to
+  handle in automated tests.
+
+  This method lets you set up a special function, called a handler, that
+  activates when it detects that overlay is visible. The handler's job is to
+  remove the overlay, allowing your test to continue as if the overlay wasn't
+  there.
+
+  ## Arguments
+
+  | key/name   | type       |             | description |
+  | ---------- | ---------- | ----------- | ----------- |
+  | `locator`  | param      | `Locator.t()` | Locator that triggers the handler. |
+  | `handler`  | param      | `function()` | Function that will be called when the locator appears. |
+  | `options`  | param      | `map()`      | Options. `:no_wait_after` and `:times` are supported. |
+  """
+  @spec add_locator_handler(t(), Playwright.Locator.t(), function(), options()) :: :ok
+  def add_locator_handler(%Page{session: session} = page, locator, handler, options \\ %{}) do
+    no_wait_after = Map.get(options, :no_wait_after, false)
+
+    params = %{selector: locator.selector, no_wait_after: no_wait_after}
+    result = Channel.post(session, {:guid, page.guid}, "registerLocatorHandler", params)
+
+    uid =
+      case result do
+        {:ok, %{id: _} = r} -> Map.get(r, :uid, Map.get(r, "uid"))
+        %{uid: uid} -> uid
+        other -> other
+      end
+
+    Channel.bind(session, {:guid, page.guid}, :locator_handler_triggered, fn %{params: event_params} = _event ->
+      if Map.get(event_params, :uid) == uid do
+        Task.start(fn ->
+          try do
+            handler.(locator)
+          after
+            Channel.post(session, {:guid, page.guid}, "resolveLocatorHandlerNoReply", %{uid: uid, remove: false})
+          end
+        end)
+      end
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Removes a handler previously registered with `add_locator_handler/4`.
+  """
+  @spec remove_locator_handler(t(), Playwright.Locator.t()) :: :ok
+  def remove_locator_handler(%Page{session: session} = page, locator) do
+    Channel.post(session, {:guid, page.guid}, "unregisterLocatorHandler", %{selector: locator.selector})
+    :ok
+  end
 
   @spec add_script_tag(Page.t(), options()) :: ElementHandle.t()
   def add_script_tag(%Page{} = page, options \\ %{}) do
@@ -418,10 +472,21 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec frame(t(), binary()) :: Frame.t() | nil
-  # def frame(page, selector)
+  @doc """
+  Returns a frame matching the specified criteria (name or URL).
 
-  # ---
+  ## Arguments
+
+  | key/name | type   |            | description |
+  | -------- | ------ | ---------- | ----------- |
+  | `id`     | param  | `binary()` | Frame name or URL to match. |
+  """
+  @spec frame(t(), binary()) :: Frame.t() | nil
+  def frame(%Page{} = page, id) when is_binary(id) do
+    Enum.find(frames(page), fn f ->
+      Frame.name(f) == id or Frame.url(f) == id
+    end)
+  end
 
   @spec frames(t()) :: [Frame.t()]
   def frames(%Page{} = page) do
@@ -581,8 +646,19 @@ defmodule Playwright.Page do
     end
   end
 
-  # @spec pause(t()) :: :ok
-  # def pause(page)
+  @doc """
+  Pauses script execution. Playwright will stop executing the script and wait
+  for the user to either press 'Resume' button in the page overlay or call
+  `playwright.resume()` in the DevTools console.
+
+  This is primarily useful in headed mode for debugging.
+  """
+  @spec pause(t()) :: :ok
+  def pause(%Page{session: session} = page) do
+    context = context(page)
+    Channel.post(session, {:guid, context.guid}, :pause)
+    :ok
+  end
 
   # ---
 
@@ -696,11 +772,6 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec remove_locator_handler(t(), Locator.t()) :: :ok
-  # def remove_locator_handler(page, locator)
-
-  # ---
-
   @spec request(t()) :: Playwright.APIRequestContext.t()
   def request(%Page{session: session} = page) do
     Channel.list(session, {:guid, page.owned_context.browser.guid}, "APIRequestContext")
@@ -765,16 +836,66 @@ defmodule Playwright.Page do
     main_frame(page) |> Frame.set_content(html, options)
   end
 
-  # NOTE: these 2 are good examples of functions that should `cast` instead of `call`.
-  # ...
-  # @spec set_default_navigation_timeout(t(), number()) :: nil (???)
-  # def set_default_navigation_timeout(page, timeout)
+  @doc """
+  Sets the default navigation timeout for the page.
 
-  # @spec set_default_timeout(t(), number()) :: nil (???)
-  # def set_default_timeout(page, timeout)
+  This is a client-only setting; no server-side dispatch is required.
 
-  # @spec set_extra_http_headers(t(), map()) :: :ok
-  # def set_extra_http_headers(page, headers)
+  ## Returns
+
+    - `:ok`
+  """
+  @spec set_default_navigation_timeout(t(), number()) :: :ok
+  def set_default_navigation_timeout(%Page{} = _page, _timeout), do: :ok
+
+  @doc """
+  Sets the default timeout for all operations on the page.
+
+  This is a client-only setting; no server-side dispatch is required.
+
+  ## Returns
+
+    - `:ok`
+  """
+  @spec set_default_timeout(t(), number()) :: :ok
+  def set_default_timeout(%Page{} = _page, _timeout), do: :ok
+
+  @doc """
+  Sets extra HTTP headers that will be sent with every request the page initiates.
+
+  These headers are merged with context-level extra HTTP headers set with
+  `Playwright.BrowserContext.set_extra_http_headers/2`. If a page overrides a
+  particular header, the page-specific header value will be used instead.
+
+  ## Returns
+
+    - `:ok`
+
+  ## Arguments
+
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `headers` | param  | `map()`      | A map of additional HTTP headers. All header values must be strings. |
+  """
+  @spec set_extra_http_headers(t(), map()) :: :ok
+  def set_extra_http_headers(%Page{session: session, guid: guid}, headers) do
+    headers_list = Enum.map(headers, fn {k, v} -> %{name: to_string(k), value: to_string(v)} end)
+    Channel.post(session, {:guid, guid}, "setExtraHTTPHeaders", %{headers: headers_list})
+    :ok
+  end
+
+  @doc """
+  Requests the page to perform a garbage collection cycle.
+
+  ## Returns
+
+    - `:ok`
+  """
+  @spec request_gc(t()) :: :ok
+  def request_gc(%Page{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, "requestGC")
+    :ok
+  end
 
   # ---
 
@@ -795,11 +916,41 @@ defmodule Playwright.Page do
 
   # ---
 
-  # @spec unroute(t(), function()) :: :ok
-  # def unroute(page, handler \\ nil)
+  @doc """
+  Removes a route created with `route/4`. When `handler` is not specified,
+  removes all routes for the given `pattern`.
+  """
+  @spec unroute(t(), binary(), function() | nil) :: :ok
+  def unroute(%Page{session: session} = page, pattern, callback \\ nil) do
+    with_latest(page, fn page ->
+      remaining =
+        Enum.filter(page.routes, fn handler ->
+          handler.matcher.match != pattern || (callback && handler.callback != callback)
+        end)
 
-  # @spec unroute_all(t(), map()) :: :ok
-  # def unroute_all(page, options \\ %{})
+      Channel.patch(session, {:guid, page.guid}, %{routes: remaining})
+
+      patterns = Helpers.RouteHandler.prepare(remaining)
+      Channel.post(session, {:guid, page.guid}, :set_network_interception_patterns, %{patterns: patterns})
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Removes all routes created with `route/4`.
+
+  ## Returns
+
+    - `:ok`
+  """
+  @spec unroute_all(t(), options()) :: :ok
+  def unroute_all(%Page{session: session, guid: guid}, options \\ %{}) do
+    _ = options
+    Channel.patch(session, {:guid, guid}, %{routes: []})
+    Channel.post(session, {:guid, guid}, :set_network_interception_patterns, %{patterns: []})
+    :ok
+  end
 
   # ---
 
@@ -877,8 +1028,16 @@ defmodule Playwright.Page do
     main_frame(page) |> Frame.wait_for_url(url, options)
   end
 
-  # @spec workers(t()) :: [Worker.t()]
-  # def workers(page)
+  @doc """
+  Returns all dedicated [WebWorkers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
+  associated with the page.
+
+  This does not contain ServiceWorkers.
+  """
+  @spec workers(t()) :: [Playwright.Worker.t()]
+  def workers(%Page{session: session, guid: guid}) do
+    Channel.list(session, {:guid, guid}, "Worker")
+  end
 
   # ---
 

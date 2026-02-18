@@ -15,10 +15,12 @@ defmodule Playwright.Frame do
       the page.  A Frame can be detached from the page only once.
   """
   use Playwright.SDK.ChannelOwner
-  alias Playwright.{ElementHandle, Frame, Locator, Response}
+  alias Playwright.{ElementHandle, Frame, Locator, Page, Response}
   alias Playwright.SDK.{ChannelOwner, Helpers}
 
   @property :load_states
+  @property :name
+  @property :parent_frame
   @property :url
 
   @type evaluation_argument :: any()
@@ -83,8 +85,21 @@ defmodule Playwright.Frame do
 
   # ---
 
-  # @spec child_frames(Frame.t()) :: [Frame.t()]
-  # def child_frames(frame)
+  @doc """
+  Returns child frames of this frame.
+  """
+  @spec child_frames(Frame.t()) :: [Frame.t()]
+  def child_frames(%Frame{} = frame) do
+    page_owner = page(frame)
+
+    Page.frames(page_owner)
+    |> Enum.filter(fn f ->
+      case f.parent_frame do
+        %{guid: guid} -> guid == frame.guid
+        _ -> false
+      end
+    end)
+  end
 
   # ---
 
@@ -419,8 +434,14 @@ defmodule Playwright.Frame do
     Channel.post(session, {:guid, frame.guid}, :focus, params)
   end
 
-  # @spec frame_element(Frame.t()) :: ElementHandle.t()
-  # def frame_element(frame)
+  @doc """
+  Returns the `Playwright.ElementHandle` for the `<iframe>` or `<frame>` DOM
+  element associated with this frame.
+  """
+  @spec frame_element(Frame.t()) :: ElementHandle.t()
+  def frame_element(%Frame{session: session} = frame) do
+    Channel.post(session, {:guid, frame.guid}, "frameElement")
+  end
 
   @spec frame_locator(Frame.t(), binary()) :: Playwright.Page.FrameLocator.t()
   def frame_locator(frame, selector) do
@@ -566,8 +587,16 @@ defmodule Playwright.Frame do
     Channel.post(session, {:guid, frame.guid}, :is_checked, params)
   end
 
-  # @spec is_detached(Frame.t(), binary(), options()) :: boolean()
-  # def is_detached(frame, selector, options \\ %{})
+  @doc """
+  Returns `true` if the frame has been detached, or `false` otherwise.
+  """
+  @spec is_detached(Frame.t()) :: boolean()
+  def is_detached(%Frame{session: session, guid: guid}) do
+    case Channel.find(session, {:guid, guid}, %{timeout: 10}) do
+      %Frame{} -> false
+      _ -> true
+    end
+  end
 
   @spec is_disabled(Frame.t(), binary(), options()) :: boolean()
   def is_disabled(%Frame{session: session} = frame, selector, options \\ %{}) do
@@ -606,18 +635,30 @@ defmodule Playwright.Frame do
     Playwright.Locator.new(frame, selector)
   end
 
-  # @spec name(Frame.t()) :: binary()
-  # def name(frame)
+  @doc """
+  Returns the `Playwright.Page` that this frame belongs to.
 
-  # @spec page(Frame.t()) :: Page.t()
-  # def page(frame)
+  Searches pages in the parent BrowserContext to find the one that
+  contains this frame.
+  """
+  @spec page(Frame.t()) :: Page.t() | nil
+  def page(%Frame{session: session, parent: parent} = frame) do
+    case parent do
+      %Page{} ->
+        Channel.find(session, {:guid, parent.guid})
 
-  # @spec parent_frame(Frame.t()) :: Frame.t()
-  # def parent_frame(frame)
+      %Playwright.BrowserContext{} ->
+        context = Channel.find(session, {:guid, parent.guid})
 
-  # ??? is it `parent_frame` now, instead?
-  # @spec parent_page(Frame.t()) :: Frame.t()
-  # def parent_page(frame)
+        Playwright.BrowserContext.pages(context)
+        |> Enum.find(fn p ->
+          Page.frames(p) |> Enum.any?(fn f -> f.guid == frame.guid end)
+        end)
+
+      _ ->
+        nil
+    end
+  end
 
   # ---
 

@@ -87,13 +87,46 @@ defmodule Playwright.ConsoleMessage do
 
   def location(%{location: location}), do: location || %{}
 
-  # ---
+  @doc """
+  Returns the list of arguments passed to the console call.
 
-  # @spec args(t()) :: [JSHandle.t()]
-  # def args(message)
+  Accepts a `%ConsoleMessage{}` struct (resolves JSHandle GUIDs from the
+  initializer's `args` list) or a map with an `:args` key (e.g., the result
+  of `from_event/1`).
+  """
+  @spec args(t() | map()) :: [Playwright.JSHandle.t()]
+  def args(%__MODULE__{session: session, initializer: initializer}) do
+    (initializer || %{})
+    |> Map.get(:args, [])
+    |> Enum.map(fn
+      %{guid: guid} -> Channel.find(session, {:guid, guid})
+      other -> other
+    end)
+  end
 
-  # @spec page(t()) :: Page.t()
-  # def page(message)
+  def args(%{args: args}), do: args || []
 
-  # ---
+  @doc """
+  Returns the page that produced this console message.
+
+  Accepts a `%ConsoleMessage{}` struct (walks the parent chain to find
+  the `%Page{}`) or a map with a `:page` key (e.g., from `from_event/1`).
+  """
+  @spec page(t() | map()) :: Playwright.Page.t() | nil
+  def page(%__MODULE__{session: session, parent: parent}) do
+    do_find_page(session, parent)
+  end
+
+  def page(%{page: page}), do: page
+
+  defp do_find_page(_session, nil), do: nil
+
+  defp do_find_page(_session, %Playwright.Page{} = page), do: page
+
+  defp do_find_page(session, %{parent: %{guid: parent_guid}}) do
+    parent = Channel.find(session, {:guid, parent_guid})
+    do_find_page(session, parent)
+  end
+
+  defp do_find_page(_session, _other), do: nil
 end

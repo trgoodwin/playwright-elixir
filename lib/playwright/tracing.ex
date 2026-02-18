@@ -118,6 +118,42 @@ defmodule Playwright.Tracing do
     :ok
   end
 
+  @doc """
+  Creates a named group in the trace. Groups are shown in the Trace Viewer
+  and help organize actions. All actions between `group/2` and `group_end/1`
+  are grouped together.
+
+  ## Options
+
+    - `:name` - Group name shown in the trace viewer.
+  """
+  @spec group(BrowserContext.t() | t(), binary(), options()) :: :ok
+  def group(owner, name, options \\ %{})
+
+  def group(%BrowserContext{} = context, name, options) do
+    context |> BrowserContext.tracing() |> group(name, options)
+  end
+
+  def group(%__MODULE__{session: session, guid: guid}, name, _options) do
+    Channel.post(session, {:guid, guid}, :tracing_group, %{name: name})
+    :ok
+  end
+
+  @doc """
+  Closes the last group created with `group/2`.
+  """
+  @spec group_end(BrowserContext.t() | t()) :: :ok
+  def group_end(owner)
+
+  def group_end(%BrowserContext{} = context) do
+    context |> BrowserContext.tracing() |> group_end()
+  end
+
+  def group_end(%__MODULE__{session: session, guid: guid}) do
+    Channel.post(session, {:guid, guid}, :tracing_group_end)
+    :ok
+  end
+
   # private
   # ---------------------------------------------------------------------------
 

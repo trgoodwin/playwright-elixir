@@ -470,6 +470,89 @@ defmodule Playwright.PageTest do
     end
   end
 
+  describe "Page.frame/2" do
+    test "returns a frame by URL", %{assets: assets, page: page} do
+      Page.goto(page, assets.empty)
+      attach_frame(page, "named-frame", assets.dom)
+
+      frame = Page.frame(page, assets.dom)
+      assert %Frame{} = frame
+      assert Frame.url(frame) =~ "dom.html"
+    end
+
+    test "returns nil when frame not found", %{page: page} do
+      assert Page.frame(page, "nonexistent") == nil
+    end
+  end
+
+  describe "Page.workers/1" do
+    test "returns workers on the page", %{assets: assets, page: page} do
+      test_pid = self()
+
+      Page.on(page, :worker, fn %{params: %{worker: worker}} ->
+        send(test_pid, {:worker, worker})
+      end)
+
+      Page.goto(page, assets.prefix <> "/worker/worker.html")
+      assert_receive {:worker, _worker}, 5_000
+
+      workers = Page.workers(page)
+      assert length(workers) >= 1
+      assert %Playwright.Worker{} = hd(workers)
+    end
+  end
+
+  describe "Page.set_default_timeout/2" do
+    test "returns :ok", %{page: page} do
+      assert Page.set_default_timeout(page, 5000) == :ok
+    end
+  end
+
+  describe "Page.set_default_navigation_timeout/2" do
+    test "returns :ok", %{page: page} do
+      assert Page.set_default_navigation_timeout(page, 5000) == :ok
+    end
+  end
+
+  describe "Page.set_extra_http_headers/2" do
+    test "sets extra headers", %{assets: assets, page: page} do
+      assert Page.set_extra_http_headers(page, %{"X-Custom" => "value"}) == :ok
+      Page.goto(page, assets.empty)
+      assert Page.url(page) =~ "empty.html"
+    end
+  end
+
+  describe "Page.request_gc/1" do
+    test "returns :ok", %{page: page} do
+      assert Page.request_gc(page) == :ok
+    end
+  end
+
+  describe "Page.unroute/2" do
+    test "removes a route handler", %{assets: assets, page: page} do
+      pid = self()
+
+      handler = fn route, _request ->
+        send(pid, :intercepted)
+        Route.continue(route)
+      end
+
+      Page.route(page, "**/empty.html", handler)
+      Page.goto(page, assets.empty)
+      assert_received(:intercepted)
+
+      Page.unroute(page, "**/empty.html")
+      Page.goto(page, assets.empty)
+      # The handler should no longer fire after unroute
+    end
+  end
+
+  describe "Page.unroute_all/1" do
+    test "removes all route handlers", %{page: page} do
+      assert Page.unroute_all(page) == :ok
+    end
+  end
+
   describe "Page.wait_for_selector/3" do
     test "blocks until the selector matches", %{page: page} do
       page

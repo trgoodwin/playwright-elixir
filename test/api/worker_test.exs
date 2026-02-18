@@ -66,4 +66,25 @@ defmodule Playwright.WorkerTest do
       assert %Playwright.JSHandle{} = handle
     end
   end
+
+  describe "Worker.on/3" do
+    test "registers a callback for :close", %{assets: assets, page: page} do
+      test_pid = self()
+
+      Page.on(page, :worker, fn %{params: %{worker: worker}} ->
+        Worker.on(worker, :close, fn _event ->
+          send(test_pid, :worker_closed)
+        end)
+
+        send(test_pid, {:worker, worker})
+      end)
+
+      Page.goto(page, assets.prefix <> "/worker/worker.html")
+      assert_receive {:worker, _worker}, 5_000
+
+      # Navigate away to close the worker
+      Page.goto(page, "about:blank")
+      assert_receive :worker_closed, 5_000
+    end
+  end
 end

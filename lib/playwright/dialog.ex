@@ -3,8 +3,9 @@ defmodule Playwright.Dialog do
   use Playwright.SDK.ChannelOwner
   alias Playwright.SDK.Channel
 
-  @property :message
   @property :default_value
+  @property :message
+  @property :page
 
   @doc """
   Returns the type of the dialog.

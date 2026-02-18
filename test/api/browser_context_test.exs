@@ -351,6 +351,26 @@ defmodule Playwright.BrowserContextTest do
     end
   end
 
+  describe "BrowserContext.clock/1" do
+    @tag exclude: [:page]
+    test "returns the context itself", %{browser: browser} do
+      context = Browser.new_context(browser)
+      clock = BrowserContext.clock(context)
+      assert clock.guid == context.guid
+      BrowserContext.close(context)
+    end
+  end
+
+  describe "BrowserContext.request/1" do
+    @tag exclude: [:page]
+    test "returns an APIRequestContext", %{browser: browser} do
+      context = Browser.new_context(browser)
+      req = BrowserContext.request(context)
+      assert %Playwright.APIRequestContext{} = req
+      BrowserContext.close(context)
+    end
+  end
+
   describe "User Agent" do
     test "can be set via new_context", %{browser: browser} do
       context = Browser.new_context(browser, %{"userAgent" => "Mozzies"})
