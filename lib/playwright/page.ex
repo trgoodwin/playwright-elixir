@@ -696,18 +696,18 @@ defmodule Playwright.Page do
     e = Atom.to_string(event) |> Recase.to_camel()
 
     Channel.post(session, {:guid, page.guid}, :update_subscription, %{event: e, enabled: true})
-    Channel.bind(session, {:guid, context(page).guid}, event, callback)
+    Channel.bind_async(session, {:guid, context(page).guid}, event, callback)
   end
 
   # NOTE: The :file_chooser event is dispatched from the PageDispatcher (not
   # BrowserContext), so we bind to the Page's guid rather than the context's.
   def on(%Page{session: session} = page, :file_chooser, callback) do
     Channel.post(session, {:guid, page.guid}, :update_subscription, %{event: "fileChooser", enabled: true})
-    Channel.bind(session, {:guid, page.guid}, :file_chooser, callback)
+    Channel.bind_async(session, {:guid, page.guid}, :file_chooser, callback)
   end
 
   def on(%Page{session: session} = page, event, callback) when is_atom(event) do
-    Channel.bind(session, {:guid, page.guid}, event, callback)
+    Channel.bind_async(session, {:guid, page.guid}, event, callback)
   end
 
   # ---

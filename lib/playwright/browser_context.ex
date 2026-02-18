@@ -537,7 +537,7 @@ defmodule Playwright.BrowserContext do
   """
   @spec on(t(), event(), function()) :: :ok
   def on(%BrowserContext{session: session} = context, event, callback) do
-    Channel.bind(session, {:guid, context.guid}, event, callback)
+    Channel.bind_async(session, {:guid, context.guid}, event, callback)
   end
 
   @doc """

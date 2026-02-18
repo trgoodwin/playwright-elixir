@@ -138,6 +138,34 @@ defmodule Playwright.PageTest do
       assert_received(%Event{params: %{text: "info!", type: "info"}, type: :console})
       assert_received(%Event{params: %{text: "error!", type: "error"}, type: :console})
     end
+
+    test "slow listener does not block other operations", %{page: page} do
+      test_pid = self()
+
+      # Register a listener that sleeps, simulating a slow callback
+      Page.on(page, "console", fn _event ->
+        Process.sleep(500)
+        send(test_pid, :slow_done)
+      end)
+
+      # Trigger a console event
+      Page.evaluate(page, "console.log('hello')")
+
+      # If listeners ran synchronously inside Connection, this evaluate would
+      # block for 500ms waiting for the slow callback to finish. With async
+      # dispatch, it returns promptly.
+      {elapsed, result} =
+        :timer.tc(fn ->
+          Page.evaluate(page, "1 + 1")
+        end)
+
+      assert result == 2
+      # Synchronous dispatch would take >= 500ms. Async should be well under.
+      assert elapsed < 400_000, "evaluate took #{elapsed}µs — listener may be blocking the connection"
+
+      # The slow callback should still complete eventually
+      assert_receive :slow_done, 2_000
+    end
   end
 
   test "on 'request' fires for navigation requests", %{assets: assets, page: page} do

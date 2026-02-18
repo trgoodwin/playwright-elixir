@@ -147,6 +147,17 @@ defmodule Playwright.SDK.Channel.Response do
       end)
 
     Channel.Catalog.put(catalog, resolved.target)
+
+    async_bindings = Map.get(Channel.Session.async_bindings(session), {owner.guid, event.type}, [])
+
+    if async_bindings != [] do
+      task_supervisor = Channel.Session.task_supervisor(session)
+
+      Enum.each(async_bindings, fn callback ->
+        Task.Supervisor.start_child(task_supervisor, fn -> callback.(resolved) end)
+      end)
+    end
+
     resolved
   end
 end

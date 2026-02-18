@@ -10,6 +10,10 @@ defmodule Playwright.SDK.Channel do
     Session.bind(session, {guid, event_type}, callback)
   end
 
+  def bind_async(session, {:guid, guid}, event_type, callback) when is_binary(guid) do
+    Session.bind_async(session, {guid, event_type}, callback)
+  end
+
   def find(session, {:guid, guid}, options \\ %{}) when is_binary(guid) do
     Session.catalog(session) |> Catalog.get(guid, options)
   end

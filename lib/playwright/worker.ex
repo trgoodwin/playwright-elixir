@@ -59,7 +59,7 @@ defmodule Playwright.Worker do
   """
   @spec on(t(), atom(), function()) :: :ok
   def on(%__MODULE__{session: session, guid: guid}, event, callback) when is_atom(event) do
-    Channel.bind(session, {:guid, guid}, event, callback)
+    Channel.bind_async(session, {:guid, guid}, event, callback)
     :ok
   end
 
