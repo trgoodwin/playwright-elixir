@@ -4,7 +4,7 @@ defmodule Playwright.SDK.Channel.Session do
   import Playwright.SDK.Extra.Atom
   alias Playwright.SDK.Channel
 
-  defstruct [:async_bindings, :bindings, :catalog, :connection, :task_supervisor]
+  defstruct [:async_bindings, :bindings, :catalog, :connection, :supervisor, :task_supervisor]
 
   # module init
   # ---------------------------------------------------------------------------
@@ -28,17 +28,29 @@ defmodule Playwright.SDK.Channel.Session do
   def init(transport) do
     pid = self()
     root = %{session: pid}
-    {:ok, catalog} = Channel.Catalog.start_link(root)
-    {:ok, connection} = Channel.Connection.start_link({pid, transport})
-    {:ok, task_supervisor} = Task.Supervisor.start_link()
+
+    children = [
+      %{id: :task_supervisor, start: {Task.Supervisor, :start_link, [[]]}, type: :supervisor},
+      %{id: Channel.Catalog, start: {Channel.Catalog, :start_link, [root]}},
+      %{id: Channel.Connection, start: {Channel.Connection, :start_link, [{pid, transport}]}}
+    ]
+
+    {:ok, supervisor} =
+      Supervisor.start_link(children, strategy: :one_for_all, max_restarts: 0)
+
+    children_map =
+      for {id, child_pid, _, _} <- Supervisor.which_children(supervisor),
+          into: %{},
+          do: {id, child_pid}
 
     {:ok,
      %__MODULE__{
        async_bindings: %{},
        bindings: %{},
-       catalog: catalog,
-       connection: connection,
-       task_supervisor: task_supervisor
+       catalog: children_map[Channel.Catalog],
+       connection: children_map[Channel.Connection],
+       supervisor: supervisor,
+       task_supervisor: children_map[:task_supervisor]
      }}
   end
 
@@ -116,6 +128,13 @@ defmodule Playwright.SDK.Channel.Session do
     async_bindings = Map.put(async_bindings, key, updated)
     {:noreply, %{state | async_bindings: async_bindings}}
   end
+
+  @impl GenServer
+  def terminate(_reason, %{supervisor: supervisor}) when is_pid(supervisor) do
+    Supervisor.stop(supervisor, :shutdown)
+  end
+
+  def terminate(_reason, _state), do: :ok
 
   # private
   # ---------------------------------------------------------------------------
