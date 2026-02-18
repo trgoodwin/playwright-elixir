@@ -163,7 +163,7 @@ defmodule Playwright.SDK.Channel.Catalog do
 
   @impl GenServer
   def handle_call({:list, filter}, _, %{storage: storage} = state) do
-    case filter(Map.values(storage), filter, []) do
+    case filter(Map.values(storage), normalize_parent(filter), []) do
       [] ->
         {:reply, [], state}
 
@@ -202,17 +202,17 @@ defmodule Playwright.SDK.Channel.Catalog do
   end
 
   defp filter([head | tail], %{parent: parent, type: type} = attrs, result)
-       when head.parent.guid == parent.guid and head.type == type do
+       when head.parent.guid == parent and head.type == type do
     filter(tail, attrs, result ++ [head])
   end
 
   defp filter([head | tail], %{parent: parent, type: type} = attrs, result)
-       when head.parent.guid != parent.guid or head.type != type do
+       when head.parent.guid != parent or head.type != type do
     filter(tail, attrs, result)
   end
 
   defp filter([head | tail], %{parent: parent} = attrs, result)
-       when head.parent.guid == parent.guid do
+       when head.parent.guid == parent do
     filter(tail, attrs, result ++ [head])
   end
 
@@ -229,6 +229,10 @@ defmodule Playwright.SDK.Channel.Catalog do
   defp filter([_head | tail], attrs, result) do
     filter(tail, attrs, result)
   end
+
+  defp normalize_parent(%{parent: %{guid: guid}} = filter), do: %{filter | parent: guid}
+  defp normalize_parent(%{parent: parent} = filter) when is_binary(parent), do: filter
+  defp normalize_parent(filter), do: filter
 
   defp rm(catalog, guid) do
     GenServer.call(catalog, {:rm, guid})

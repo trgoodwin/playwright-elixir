@@ -27,9 +27,51 @@ defmodule Plawyeright.Channel.CatalogTest do
     end
   end
 
-  describe "Catalog.list/3" do
+  describe "Catalog.list/2" do
     test "returns a List of resources that match the filter", %{catalog: catalog} do
       assert [%{guid: "Root"}] = Catalog.list(catalog, %{guid: "Root"})
+    end
+
+    test "filters by parent struct and type", %{catalog: catalog} do
+      root = Catalog.get(catalog, "Root")
+      Catalog.put(catalog, %{guid: "A", parent: %{guid: "Root"}, type: "Page"})
+      Catalog.put(catalog, %{guid: "B", parent: %{guid: "Root"}, type: "Frame"})
+      Catalog.put(catalog, %{guid: "C", parent: %{guid: "A"}, type: "Frame"})
+
+      result = Catalog.list(catalog, %{parent: root, type: "Page"})
+      assert [%{guid: "A"}] = result
+    end
+
+    test "filters by parent string GUID and type", %{catalog: catalog} do
+      Catalog.put(catalog, %{guid: "A", parent: %{guid: "Root"}, type: "Page"})
+      Catalog.put(catalog, %{guid: "B", parent: %{guid: "Root"}, type: "Frame"})
+      Catalog.put(catalog, %{guid: "C", parent: %{guid: "A"}, type: "Frame"})
+
+      result = Catalog.list(catalog, %{parent: "Root", type: "Page"})
+      assert [%{guid: "A"}] = result
+
+      result = Catalog.list(catalog, %{parent: "Root", type: "Frame"})
+      assert [%{guid: "B"}] = result
+
+      result = Catalog.list(catalog, %{parent: "A", type: "Frame"})
+      assert [%{guid: "C"}] = result
+    end
+
+    test "filters by parent string GUID without type", %{catalog: catalog} do
+      Catalog.put(catalog, %{guid: "A", parent: %{guid: "Root"}, type: "Page"})
+      Catalog.put(catalog, %{guid: "B", parent: %{guid: "Root"}, type: "Frame"})
+
+      result = Catalog.list(catalog, %{parent: "Root"})
+      guids = Enum.map(result, & &1.guid) |> Enum.sort()
+      assert guids == ["A", "B"]
+    end
+
+    test "does not return items from a different parent", %{catalog: catalog} do
+      Catalog.put(catalog, %{guid: "A", parent: %{guid: "Root"}, type: "Page"})
+      Catalog.put(catalog, %{guid: "B", parent: %{guid: "A"}, type: "Frame"})
+
+      result = Catalog.list(catalog, %{parent: "Root", type: "Frame"})
+      assert result == []
     end
   end
 

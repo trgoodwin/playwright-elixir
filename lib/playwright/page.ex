@@ -490,7 +490,9 @@ defmodule Playwright.Page do
 
   @spec frames(t()) :: [Frame.t()]
   def frames(%Page{} = page) do
-    Channel.list(page.session, {:guid, page.guid}, "Frame")
+    main = main_frame(page)
+    children = Channel.list(page.session, {:guid, page.guid}, "Frame")
+    if main, do: [main | children], else: children
   end
 
   # ---
