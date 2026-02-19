@@ -1,6 +1,7 @@
 defmodule Playwright.SDK.Transport do
   @moduledoc false
   use GenServer
+  require Logger
   import Playwright.SDK.Extra.Map
   alias Playwright.SDK.Channel.Connection
 
@@ -48,6 +49,20 @@ defmodule Playwright.SDK.Transport do
     {:noreply, state}
   end
 
+  # WebSocket: gun process monitored via Process.monitor in setup
+  @impl GenServer
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
+    Logger.error("[transport] Connection lost: #{inspect(reason)}")
+    {:stop, {:transport_closed, reason}, state}
+  end
+
+  # Driver: port monitored via Port.monitor in setup
+  @impl GenServer
+  def handle_info({:DOWN, _ref, :port, _port, reason}, state) do
+    Logger.error("[transport] Driver process exited: #{inspect(reason)}")
+    {:stop, {:transport_closed, reason}, state}
+  end
+
   @impl GenServer
   def handle_info(info, %{connection: connection, transport: {module, data}} = state) do
     {messages, updates} = module.parse(info, data)
@@ -59,23 +74,6 @@ defmodule Playwright.SDK.Transport do
 
     {:noreply, %{state | transport: {module, Map.merge(data, updates)}}}
   end
-
-  # Transport.Driver...
-  # def handle_info({:DOWN, _ref, :port, port, :normal}, state) do
-  #   Logger.warning("[transport@#{inspect(self())}] Handled :DOWN message from port: #{inspect(port)}")
-  #   {:noreply, state}
-  # end
-
-  # def handle_info(msg, state) do
-  #   Logger.info("[transport@#{inspect(self())}] Unhandled message: #{inspect(msg)}")
-  #   {:noreply, state}
-  # end
-
-  # Transport.Websocket...
-  # def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
-  #   warn("Process went down: #{inspect(pid)}")
-  #   {:stop, reason, state}
-  # end
 
   # private
   # ----------------------------------------------------------------------------

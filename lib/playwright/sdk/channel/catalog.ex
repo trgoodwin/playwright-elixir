@@ -39,6 +39,8 @@ defmodule Playwright.SDK.Channel.Catalog do
 
   @impl GenServer
   def init(root) do
+    Process.flag(:trap_exit, true)
+
     {:ok,
      %__MODULE__{
        awaiting: %{},
@@ -237,6 +239,19 @@ defmodule Playwright.SDK.Channel.Catalog do
   def handle_call({:rm, guid}, _, %{storage: storage} = state) do
     updated = Map.delete(storage, guid)
     {:reply, :ok, %{state | storage: updated}}
+  end
+
+  @impl GenServer
+  def terminate(_reason, %{awaiting: awaiting, watchers: watchers}) do
+    Enum.each(awaiting, fn {_guid, from} ->
+      GenServer.reply(from, {:error, :terminated})
+    end)
+
+    Enum.each(watchers, fn {_guid, _predicate, from} ->
+      GenServer.reply(from, {:error, :terminated})
+    end)
+
+    :ok
   end
 
   # private

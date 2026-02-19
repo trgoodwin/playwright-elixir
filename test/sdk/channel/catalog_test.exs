@@ -83,6 +83,34 @@ defmodule Plawyeright.Channel.CatalogTest do
     end
   end
 
+  describe "terminate/2" do
+    test "replies {:error, :terminated} to awaiting callers on shutdown", %{catalog: catalog} do
+      task =
+        Task.async(fn ->
+          Catalog.get(catalog, "NonExistent", %{timeout: 5000})
+        end)
+
+      Process.sleep(50)
+      stop_supervised(Catalog)
+
+      assert {:error, :terminated} = Task.await(task, 1000)
+    end
+
+    test "replies {:error, :terminated} to watchers on shutdown", %{catalog: catalog} do
+      Catalog.put(catalog, %{guid: "Watched"})
+
+      task =
+        Task.async(fn ->
+          Catalog.watch(catalog, "Watched", fn _item -> false end, %{timeout: 5000})
+        end)
+
+      Process.sleep(50)
+      stop_supervised(Catalog)
+
+      assert {:error, :terminated} = Task.await(task, 1000)
+    end
+  end
+
   describe "Catalog.rm_r/2" do
     test "removes a resource and its descendants", %{catalog: catalog} do
       Catalog.put(catalog, %{guid: "Trunk", parent: %{guid: "Root"}})

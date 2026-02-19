@@ -18,6 +18,7 @@ defmodule Playwright.SDK.Transport.Driver do
     cli = Map.get(config, :driver_path, default_cli())
     cmd = "run-driver"
     port = Port.open({:spawn, "#{cli} #{cmd}"}, [:binary])
+    Port.monitor(port)
 
     %__MODULE__{
       port: port,

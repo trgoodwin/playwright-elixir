@@ -22,6 +22,8 @@ defmodule Playwright.SDK.Channel.Connection do
 
   @impl GenServer
   def init({session, transport}) do
+    Process.flag(:trap_exit, true)
+
     state = %__MODULE__{
       session: session,
       transport: Transport.start_link!({self(), transport})
@@ -115,6 +117,33 @@ defmodule Playwright.SDK.Channel.Connection do
       end
 
     {:noreply, update}
+  end
+
+  @impl GenServer
+  def handle_info({:EXIT, pid, reason}, %{transport: pid} = state) do
+    Logger.error("[connection] Transport exited: #{inspect(reason)}")
+    {:stop, {:transport_closed, reason}, state}
+  end
+
+  def handle_info({:EXIT, _pid, _reason}, state) do
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def terminate(reason, %{callbacks: callbacks}) do
+    message =
+      case reason do
+        {:transport_closed, r} -> "Connection closed: #{inspect(r)}"
+        _ -> "Connection terminated: #{inspect(reason)}"
+      end
+
+    error = Channel.Error.new(%{error: %{message: message}}, nil)
+
+    Enum.each(callbacks, fn {_key, from} ->
+      GenServer.reply(from, {:error, error})
+    end)
+
+    :ok
   end
 
   # private
