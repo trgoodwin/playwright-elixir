@@ -1025,32 +1025,20 @@ defmodule Playwright.Frame do
   | `:wait_until` | option | `binary()` | "load", "domcontentloaded", "networkidle", or "commit". `(default: "load")` |
   """
   @spec wait_for_url(t(), binary(), options()) :: :ok | {:error, :timeout}
-  def wait_for_url(%Frame{} = frame, url_pattern, options \\ %{}) do
+  def wait_for_url(%Frame{session: session} = frame, url_pattern, options \\ %{}) do
     timeout = Map.get(options, :timeout, 30_000)
-    deadline = System.monotonic_time(:millisecond) + timeout
+    catalog = Channel.Session.catalog(session)
 
-    do_wait_for_url(frame, url_pattern, deadline)
+    case Channel.Catalog.watch(catalog, frame.guid, fn f -> url_matches?(f.url, url_pattern) end, %{timeout: timeout}) do
+      {:error, _} = error -> error
+      _match -> :ok
+    end
   end
 
   # ---
 
   # private
   # ---------------------------------------------------------------------------
-
-  defp do_wait_for_url(frame, url_pattern, deadline) do
-    current_url = url(frame)
-
-    if url_matches?(current_url, url_pattern) do
-      :ok
-    else
-      if System.monotonic_time(:millisecond) > deadline do
-        {:error, :timeout}
-      else
-        Process.sleep(100)
-        do_wait_for_url(frame, url_pattern, deadline)
-      end
-    end
-  end
 
   defp url_matches?(current_url, pattern) do
     current_url == pattern or String.contains?(current_url, pattern)

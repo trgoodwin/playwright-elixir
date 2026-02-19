@@ -102,8 +102,11 @@ defmodule Playwright.SDK.Channel do
   defp evaluate(predicate, resource, event) do
     case predicate.(resource, event) do
       false ->
-        :timer.sleep(5)
-        evaluate(predicate, resource, event)
+        # The predicate returned false. Since resource and event are immutable
+        # values, retrying would never produce a different result. Block until
+        # the enclosing Task.await timeout fires, which will produce the
+        # expected {:error, timeout} via with_timeout.
+        Process.sleep(:infinity)
 
       _ ->
         event
@@ -116,33 +119,22 @@ defmodule Playwright.SDK.Channel do
     Map.put_new(params, :timeout, 30_000)
   end
 
-  defp load_preview(handle, timeout \\ DateTime.utc_now() |> DateTime.add(5, :second))
-
-  defp load_preview(items, timeout) when is_list(items) do
-    result =
-      Enum.map(items, fn item ->
-        load_preview(item, timeout)
-      end)
-
-    result
+  defp load_preview(items) when is_list(items) do
+    Enum.map(items, &load_preview/1)
   end
 
-  defp load_preview(%Playwright.ElementHandle{session: session} = handle, timeout) do
-    if DateTime.compare(DateTime.utc_now(), timeout) == :gt do
-      {:error, :timeout}
-    else
-      case handle.preview do
-        "JSHandle@node" ->
-          :timer.sleep(5)
-          find(session, {:guid, handle.guid}) |> load_preview(timeout)
+  defp load_preview(%Playwright.ElementHandle{session: session} = handle) do
+    case handle.preview do
+      "JSHandle@node" ->
+        catalog = Session.catalog(session)
+        Catalog.watch(catalog, handle.guid, fn item -> item.preview != "JSHandle@node" end, %{timeout: 5_000})
 
-        _hydrated ->
-          handle
-      end
+      _hydrated ->
+        handle
     end
   end
 
-  defp load_preview(item, _timeout) do
+  defp load_preview(item) do
     item
   end
 

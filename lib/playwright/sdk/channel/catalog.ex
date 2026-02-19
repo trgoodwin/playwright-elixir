@@ -9,7 +9,7 @@ defmodule Playwright.SDK.Channel.Catalog do
   import Playwright.SDK.Helpers.ErrorHandling
   alias Playwright.SDK.Channel
 
-  defstruct [:awaiting, :storage]
+  defstruct [:awaiting, :storage, watchers: []]
 
   # module init
   # ---------------------------------------------------------------------------
@@ -78,6 +78,34 @@ defmodule Playwright.SDK.Channel.Catalog do
   def get(catalog, guid, options \\ %{}) do
     with_timeout(options, fn timeout ->
       GenServer.call(catalog, {:get, {:guid, guid}}, timeout)
+    end)
+  end
+
+  @doc """
+  Waits for a resource in the `Catalog` to satisfy a predicate.
+
+  If the resource already satisfies the predicate, returns immediately.
+  Otherwise, the caller blocks until the resource is updated (via `put/2`)
+  and the predicate returns truthy, or until the timeout is exceeded.
+
+  ## Returns
+
+  - `resource`
+  - `{:error, error}`
+
+  ## Arguments
+
+  | key/name    | type   |              | description |
+  | ----------- | ------ | ------------ | ----------- |
+  | `catalog`   | param  | `pid()`      | PID for the Catalog server |
+  | `guid`      | param  | `binary()`   | GUID to watch |
+  | `predicate` | param  | `function()` | A 1-arity function that receives the resource and returns truthy when satisfied |
+  | `:timeout`  | option | `float()`    | Maximum time to wait, in milliseconds. Defaults to `30_000` (30 seconds). |
+  """
+  @spec watch(pid(), binary(), (struct() -> boolean()), map()) :: struct() | {:error, Channel.Error.t()}
+  def watch(catalog, guid, predicate, options \\ %{}) do
+    with_timeout(options, fn timeout ->
+      GenServer.call(catalog, {:watch, guid, predicate}, timeout)
     end)
   end
 
@@ -163,6 +191,17 @@ defmodule Playwright.SDK.Channel.Catalog do
   end
 
   @impl GenServer
+  def handle_call({:watch, guid, predicate}, from, %{storage: storage, watchers: watchers} = state) do
+    item = storage[guid]
+
+    if item && predicate.(item) do
+      {:reply, item, state}
+    else
+      {:noreply, %{state | watchers: [{guid, predicate, from} | watchers]}}
+    end
+  end
+
+  @impl GenServer
   def handle_call({:list, filter}, _, %{storage: storage} = state) do
     case filter(Map.values(storage), normalize_parent(filter), []) do
       [] ->
@@ -174,7 +213,7 @@ defmodule Playwright.SDK.Channel.Catalog do
   end
 
   @impl GenServer
-  def handle_call({:put, {:guid, guid}, item}, _, %{awaiting: awaiting, storage: storage} = state) do
+  def handle_call({:put, {:guid, guid}, item}, _, %{awaiting: awaiting, storage: storage, watchers: watchers} = state) do
     {caller, awaiting} = Map.pop(awaiting, guid)
     storage = Map.put(storage, guid, item)
 
@@ -182,7 +221,16 @@ defmodule Playwright.SDK.Channel.Catalog do
       GenServer.reply(caller, item)
     end
 
-    {:reply, item, %{state | awaiting: awaiting, storage: storage}}
+    {matched, remaining} =
+      Enum.split_with(watchers, fn {watcher_guid, predicate, _from} ->
+        watcher_guid == guid && predicate.(item)
+      end)
+
+    Enum.each(matched, fn {_guid, _predicate, from} ->
+      GenServer.reply(from, item)
+    end)
+
+    {:reply, item, %{state | awaiting: awaiting, storage: storage, watchers: remaining}}
   end
 
   @impl GenServer
