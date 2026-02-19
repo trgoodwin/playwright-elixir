@@ -1,6 +1,6 @@
-defmodule Playwright.UnitTest do
+defmodule Playwright.UnitCase do
   @moduledoc """
-  `UnitTest` is a helper module intended for use by the tests *of* Playwright.
+  `UnitCase` is a helper module intended for use by the tests *of* Playwright.
   """
   use ExUnit.CaseTemplate
 
