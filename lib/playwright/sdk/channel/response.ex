@@ -19,7 +19,7 @@ defmodule Playwright.SDK.Channel.Response do
 
   def recv(session, %{guid: guid, method: "__dispose__"}) when is_binary(guid) do
     catalog = Channel.Session.catalog(session)
-    Channel.Catalog.rm_r(catalog, guid)
+    Channel.Catalog.rm_r(catalog, guid, session)
   end
 
   def recv(session, %{guid: guid, method: method, params: params}) when is_binary(guid) do

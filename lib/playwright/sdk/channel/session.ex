@@ -85,6 +85,10 @@ defmodule Playwright.SDK.Channel.Session do
     GenServer.call(session, :task_supervisor)
   end
 
+  def unbind_all(session, guid) do
+    GenServer.cast(session, {:unbind_all, guid})
+  end
+
   # @impl callbacks
   # ---------------------------------------------------------------------------
 
@@ -127,6 +131,13 @@ defmodule Playwright.SDK.Channel.Session do
     updated = (async_bindings[key] || []) ++ [callback]
     async_bindings = Map.put(async_bindings, key, updated)
     {:noreply, %{state | async_bindings: async_bindings}}
+  end
+
+  @impl GenServer
+  def handle_cast({:unbind_all, guid}, %{bindings: bindings, async_bindings: async_bindings} = state) do
+    bindings = Map.reject(bindings, fn {{g, _}, _} -> g == guid end)
+    async_bindings = Map.reject(async_bindings, fn {{g, _}, _} -> g == guid end)
+    {:noreply, %{state | bindings: bindings, async_bindings: async_bindings}}
   end
 
   @impl GenServer

@@ -134,11 +134,12 @@ defmodule Playwright.SDK.Channel.Catalog do
   | `catalog`  | param  | `pid()`    | PID for the Catalog server |
   | `guid`     | param  | `binary()` | GUID for the "parent" |
   """
-  @spec rm_r(pid(), binary()) :: :ok
-  def rm_r(catalog, guid) do
+  @spec rm_r(pid(), binary(), pid() | nil) :: :ok
+  def rm_r(catalog, guid, session \\ nil) do
     children = list(catalog, %{parent: get(catalog, guid)})
-    children |> Enum.each(fn child -> rm_r(catalog, child.guid) end)
+    children |> Enum.each(fn child -> rm_r(catalog, child.guid, session) end)
 
+    if session, do: Channel.Session.unbind_all(session, guid)
     rm(catalog, guid)
   end
 

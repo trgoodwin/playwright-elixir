@@ -1,5 +1,7 @@
 defmodule Playwright.SDK.Channel.SessionTest do
   use Playwright.TestCase, async: true
+  alias Playwright.{Browser, Page}
+  alias Playwright.SDK.Channel.Session
 
   describe "Session supervision" do
     test "children are managed by a Supervisor", %{page: page} do
@@ -36,6 +38,44 @@ defmodule Playwright.SDK.Channel.SessionTest do
       assert counts[:active] == 3
       assert counts[:workers] == 2
       assert counts[:supervisors] == 1
+    end
+  end
+
+  describe "binding cleanup on dispose" do
+    @tag exclude: [:page]
+    test "closing a page removes its bindings", %{browser: browser} do
+      page = Browser.new_page(browser)
+      session = page.session
+      guid = page.guid
+
+      # Register both sync and async bindings for the page
+      Page.on(page, :close, fn _event -> :noop end)
+      Session.bind(session, {guid, :custom_event}, fn _ -> :noop end)
+
+      # Allow casts to process
+      _ = Session.bindings(session)
+
+      # Verify bindings exist
+      bindings = Session.bindings(session)
+      async_bindings = Session.async_bindings(session)
+      assert Map.has_key?(bindings, {guid, :custom_event})
+      assert Map.has_key?(async_bindings, {guid, :close})
+
+      # Close the page — triggers __dispose__ which should clean up bindings
+      Page.close(page)
+
+      # Allow unbind_all casts to process
+      Process.sleep(100)
+
+      # Bindings for the disposed page should be gone
+      bindings = Session.bindings(session)
+      async_bindings = Session.async_bindings(session)
+
+      page_bindings = Map.filter(bindings, fn {{g, _}, _} -> g == guid end)
+      page_async = Map.filter(async_bindings, fn {{g, _}, _} -> g == guid end)
+
+      assert page_bindings == %{}, "sync bindings for disposed page should be empty"
+      assert page_async == %{}, "async bindings for disposed page should be empty"
     end
   end
 end
