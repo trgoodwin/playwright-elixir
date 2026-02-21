@@ -18,13 +18,13 @@ defmodule Playwright.SDK.Channel.SessionTest do
       assert :task_supervisor in child_ids
     end
 
-    test "all children are alive and match session state", %{page: page} do
+    test "all children are alive and match persistent_term lookups", %{page: page} do
       state = :sys.get_state(page.session)
       children_map = for {id, pid, _, _} <- Supervisor.which_children(state.supervisor), into: %{}, do: {id, pid}
 
-      assert children_map[Playwright.SDK.Channel.Catalog] == state.catalog
-      assert children_map[Playwright.SDK.Channel.Connection] == state.connection
-      assert children_map[:task_supervisor] == state.task_supervisor
+      assert children_map[Playwright.SDK.Channel.Catalog] == Session.catalog(page.session)
+      assert children_map[Playwright.SDK.Channel.Connection] == Session.connection(page.session)
+      assert children_map[:task_supervisor] == Session.task_supervisor(page.session)
 
       for {_id, pid} <- children_map do
         assert Process.alive?(pid)
@@ -38,6 +38,53 @@ defmodule Playwright.SDK.Channel.SessionTest do
       assert counts[:active] == 3
       assert counts[:workers] == 2
       assert counts[:supervisors] == 1
+    end
+  end
+
+  describe "persistent_term PID lookup" do
+    test "lookups return correct PIDs", %{page: page} do
+      state = :sys.get_state(page.session)
+      children_map = for {id, pid, _, _} <- Supervisor.which_children(state.supervisor), into: %{}, do: {id, pid}
+
+      assert Session.catalog(page.session) == children_map[Playwright.SDK.Channel.Catalog]
+      assert Session.connection(page.session) == children_map[Playwright.SDK.Channel.Connection]
+      assert Session.task_supervisor(page.session) == children_map[:task_supervisor]
+    end
+
+    test "PIDs are accessible from a different process without GenServer.call", %{page: page} do
+      session = page.session
+      expected_catalog = Session.catalog(session)
+      expected_connection = Session.connection(session)
+      expected_task_supervisor = Session.task_supervisor(session)
+
+      # Read from a spawned process to confirm no serialization through Session
+      task =
+        Task.async(fn ->
+          {Session.catalog(session), Session.connection(session), Session.task_supervisor(session)}
+        end)
+
+      {catalog, connection, task_supervisor} = Task.await(task)
+
+      assert catalog == expected_catalog
+      assert connection == expected_connection
+      assert task_supervisor == expected_task_supervisor
+    end
+
+    @tag exclude: [:page]
+    test "persistent_term entry is cleaned up on session close" do
+      # Launch an independent session so we don't affect the shared browser
+      {session, _browser} = Playwright.BrowserType.launch()
+
+      # Verify entry exists
+      assert is_pid(Session.catalog(session))
+
+      # Stop the session via the DynamicSupervisor, which properly triggers terminate/2
+      ref = Process.monitor(session)
+      DynamicSupervisor.terminate_child(Playwright.SDK.Channel.Session.Supervisor, session)
+      assert_receive {:DOWN, ^ref, :process, ^session, _reason}, 5_000
+
+      # Entry should be erased
+      assert :persistent_term.get({Session, session}, :not_found) == :not_found
     end
   end
 

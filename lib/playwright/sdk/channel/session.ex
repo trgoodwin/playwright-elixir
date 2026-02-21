@@ -4,7 +4,7 @@ defmodule Playwright.SDK.Channel.Session do
   import Playwright.SDK.Extra.Atom
   alias Playwright.SDK.Channel
 
-  defstruct [:async_bindings, :bindings, :catalog, :connection, :supervisor, :task_supervisor]
+  defstruct [:async_bindings, :bindings, :supervisor]
 
   # module init
   # ---------------------------------------------------------------------------
@@ -26,6 +26,7 @@ defmodule Playwright.SDK.Channel.Session do
 
   @impl GenServer
   def init(transport) do
+    Process.flag(:trap_exit, true)
     pid = self()
     root = %{session: pid}
 
@@ -43,14 +44,17 @@ defmodule Playwright.SDK.Channel.Session do
           into: %{},
           do: {id, child_pid}
 
+    :persistent_term.put({__MODULE__, pid}, %{
+      catalog: children_map[Channel.Catalog],
+      connection: children_map[Channel.Connection],
+      task_supervisor: children_map[:task_supervisor]
+    })
+
     {:ok,
      %__MODULE__{
        async_bindings: %{},
        bindings: %{},
-       catalog: children_map[Channel.Catalog],
-       connection: children_map[Channel.Connection],
-       supervisor: supervisor,
-       task_supervisor: children_map[:task_supervisor]
+       supervisor: supervisor
      }}
   end
 
@@ -74,15 +78,15 @@ defmodule Playwright.SDK.Channel.Session do
   end
 
   def catalog(session) do
-    GenServer.call(session, :catalog)
+    :persistent_term.get({__MODULE__, session}).catalog
   end
 
   def connection(session) do
-    GenServer.call(session, :connection)
+    :persistent_term.get({__MODULE__, session}).connection
   end
 
   def task_supervisor(session) do
-    GenServer.call(session, :task_supervisor)
+    :persistent_term.get({__MODULE__, session}).task_supervisor
   end
 
   def unbind_all(session, guid) do
@@ -100,21 +104,6 @@ defmodule Playwright.SDK.Channel.Session do
   @impl GenServer
   def handle_call(:bindings, _, %{bindings: bindings} = state) do
     {:reply, bindings, state}
-  end
-
-  @impl GenServer
-  def handle_call(:catalog, _, %{catalog: catalog} = state) do
-    {:reply, catalog, state}
-  end
-
-  @impl GenServer
-  def handle_call(:connection, _, %{connection: connection} = state) do
-    {:reply, connection, state}
-  end
-
-  @impl GenServer
-  def handle_call(:task_supervisor, _, %{task_supervisor: task_supervisor} = state) do
-    {:reply, task_supervisor, state}
   end
 
   @impl GenServer
@@ -141,11 +130,19 @@ defmodule Playwright.SDK.Channel.Session do
   end
 
   @impl GenServer
+  def handle_info({:EXIT, supervisor, reason}, %{supervisor: supervisor} = state) do
+    {:stop, reason, state}
+  end
+
+  @impl GenServer
   def terminate(_reason, %{supervisor: supervisor}) when is_pid(supervisor) do
+    :persistent_term.erase({__MODULE__, self()})
     Supervisor.stop(supervisor, :shutdown)
   end
 
-  def terminate(_reason, _state), do: :ok
+  def terminate(_reason, _state) do
+    :persistent_term.erase({__MODULE__, self()})
+  end
 
   # private
   # ---------------------------------------------------------------------------
