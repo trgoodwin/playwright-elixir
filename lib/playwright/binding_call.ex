@@ -10,7 +10,9 @@ defmodule Playwright.BindingCall do
   @property :name
 
   def call(%BindingCall{session: session} = binding_call, func) do
-    Task.start_link(fn ->
+    task_supervisor = Channel.Session.task_supervisor(session)
+
+    Task.Supervisor.start_child(task_supervisor, fn ->
       frame = Channel.find(session, {:guid, binding_call.frame.guid})
 
       source = %{

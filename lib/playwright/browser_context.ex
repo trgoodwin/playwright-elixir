@@ -780,7 +780,7 @@ defmodule Playwright.BrowserContext do
       request = Channel.Catalog.get(catalog, request.guid)
 
       if Helpers.RouteHandler.matches(handler, request.url) do
-        Helpers.RouteHandler.handle(handler, %{request: request, route: route})
+        Helpers.RouteHandler.handle(handler, %{request: request, route: route}, context.session)
         # break
         {:halt, acc}
       else

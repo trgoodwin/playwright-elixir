@@ -83,10 +83,10 @@ defmodule Playwright.SDK.Channel.Connection do
   end
 
   @impl GenServer
-  def handle_call({:wait, {{:guid, guid}, event}, trigger}, from, %{callbacks: callbacks} = state) do
-    # Would `:continue` (which is allowed) be better here?
+  def handle_call({:wait, {{:guid, guid}, event}, trigger}, from, %{callbacks: callbacks, session: session} = state) do
     if trigger do
-      Task.start_link(trigger)
+      task_supervisor = Channel.Session.task_supervisor(session)
+      Task.Supervisor.start_child(task_supervisor, trigger)
     end
 
     key = {as_atom(event), guid}

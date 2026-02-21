@@ -14,8 +14,10 @@ defmodule Playwright.SDK.Helpers.RouteHandler do
     }
   end
 
-  def handle(%RouteHandler{} = handler, %{request: request, route: route}) do
-    Task.start_link(fn ->
+  def handle(%RouteHandler{} = handler, %{request: request, route: route}, session) do
+    task_supervisor = Playwright.SDK.Channel.Session.task_supervisor(session)
+
+    Task.Supervisor.start_child(task_supervisor, fn ->
       handler.callback.(route, request)
     end)
   end

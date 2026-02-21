@@ -199,7 +199,9 @@ defmodule Playwright.Page do
 
     Channel.bind(session, {:guid, page.guid}, :locator_handler_triggered, fn %{params: event_params} = _event ->
       if Map.get(event_params, :uid) == uid do
-        Task.start(fn ->
+        task_supervisor = Channel.Session.task_supervisor(session)
+
+        Task.Supervisor.start_child(task_supervisor, fn ->
           try do
             handler.(locator)
           after
@@ -1069,7 +1071,7 @@ defmodule Playwright.Page do
       request = Channel.Catalog.get(catalog, request.guid)
 
       if Helpers.RouteHandler.matches(handler, request.url) do
-        Helpers.RouteHandler.handle(handler, %{request: request, route: route})
+        Helpers.RouteHandler.handle(handler, %{request: request, route: route}, page.session)
         # break
         {:halt, acc}
       else

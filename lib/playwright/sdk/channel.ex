@@ -60,7 +60,7 @@ defmodule Playwright.SDK.Channel do
   def recv(session, {from, message}) when is_map(message) do
     Response.recv(session, message)
     # |> IO.inspect(label: "<--- Channel.recv/2 B")
-    |> reply(from)
+    |> reply(from, session)
   end
 
   # or, "expect"?
@@ -138,21 +138,19 @@ defmodule Playwright.SDK.Channel do
     item
   end
 
-  defp reply(%Error{} = error, from) do
-    Task.start_link(fn ->
-      GenServer.reply(from, {:error, error})
-    end)
+  defp reply(%Error{} = error, from, _session) do
+    GenServer.reply(from, {:error, error})
   end
 
-  defp reply(%Response{} = response, from) do
-    Task.start_link(fn ->
+  defp reply(%Response{} = response, from, session) do
+    task_supervisor = Session.task_supervisor(session)
+
+    Task.Supervisor.start_child(task_supervisor, fn ->
       GenServer.reply(from, {:ok, load_preview(response.parsed)})
     end)
   end
 
-  defp reply(%Event{} = event, from) do
-    Task.start_link(fn ->
-      GenServer.reply(from, {:ok, event})
-    end)
+  defp reply(%Event{} = event, from, _session) do
+    GenServer.reply(from, {:ok, event})
   end
 end
