@@ -44,8 +44,12 @@ defmodule Playwright.SDK.Channel.Session do
           into: %{},
           do: {id, child_pid}
 
+    catalog_pid = children_map[Channel.Catalog]
+    catalog_table = Channel.Catalog.table(catalog_pid)
+
     :persistent_term.put({__MODULE__, pid}, %{
-      catalog: children_map[Channel.Catalog],
+      catalog: catalog_pid,
+      catalog_table: catalog_table,
       connection: children_map[Channel.Connection],
       task_supervisor: children_map[:task_supervisor]
     })
@@ -79,6 +83,10 @@ defmodule Playwright.SDK.Channel.Session do
 
   def catalog(session) do
     :persistent_term.get({__MODULE__, session}).catalog
+  end
+
+  def catalog_table(session) do
+    :persistent_term.get({__MODULE__, session}).catalog_table
   end
 
   def connection(session) do

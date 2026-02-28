@@ -15,20 +15,21 @@ defmodule Playwright.SDK.Channel do
   end
 
   def find(session, {:guid, guid}, options \\ %{}) when is_binary(guid) do
-    Session.catalog(session) |> Catalog.get(guid, options)
+    Session.catalog_table(session) |> Catalog.get(guid, options)
   end
 
   def list(session, {:guid, guid}, type) do
-    Catalog.list(Session.catalog(session), %{
+    Catalog.list(Session.catalog_table(session), %{
       parent: guid,
       type: type
     })
   end
 
   def patch(session, {:guid, guid}, data) when is_binary(guid) do
+    table = Session.catalog_table(session)
     catalog = Session.catalog(session)
-    owner = Catalog.get(catalog, guid)
-    Catalog.put(catalog, Map.merge(owner, data))
+    owner = Catalog.get(table, guid)
+    Catalog.put(table, catalog, Map.merge(owner, data))
   end
 
   def post(session, {:guid, guid}, action, params \\ %{}) when is_binary(guid) when is_pid(session) do

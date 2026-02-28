@@ -10,23 +10,24 @@ defmodule Playwright.SDK.Channel.Response do
   def recv(session, message)
 
   def recv(session, %{guid: guid, method: "__create__", params: %{guid: _} = params}) when is_binary(guid) do
+    table = Channel.Session.catalog_table(session)
     catalog = Channel.Session.catalog(session)
     parent = (guid == "" && "Root") || guid
 
-    {:ok, owner} = ChannelOwner.from(params, Channel.Catalog.get(catalog, parent))
-    Channel.Catalog.put(catalog, owner)
+    {:ok, owner} = ChannelOwner.from(params, Channel.Catalog.get(table, parent))
+    Channel.Catalog.put(table, catalog, owner)
   end
 
   def recv(session, %{guid: guid, method: "__dispose__"}) when is_binary(guid) do
-    catalog = Channel.Session.catalog(session)
-    Channel.Catalog.rm_r(catalog, guid, session)
+    table = Channel.Session.catalog_table(session)
+    Channel.Catalog.rm_r(table, guid, session)
   end
 
   def recv(session, %{guid: guid, method: method, params: params}) when is_binary(guid) do
-    catalog = Channel.Session.catalog(session)
-    owner = Channel.Catalog.get(catalog, guid)
-    event = Channel.Event.new(owner, method, params, catalog)
-    resolve(session, catalog, owner, event)
+    table = Channel.Session.catalog_table(session)
+    owner = Channel.Catalog.get(table, guid)
+    event = Channel.Event.new(owner, method, params, table)
+    resolve(session, table, owner, event)
   end
 
   def recv(session, %{guid: guid, method: method}) when is_binary(guid) do
@@ -42,8 +43,8 @@ defmodule Playwright.SDK.Channel.Response do
   end
 
   def recv(session, %{id: _} = message) do
-    catalog = Channel.Session.catalog(session)
-    build(message, catalog)
+    table = Channel.Session.catalog_table(session)
+    build(message, table)
   end
 
   # private
@@ -132,7 +133,7 @@ defmodule Playwright.SDK.Channel.Response do
     nil
   end
 
-  defp resolve(session, catalog, owner, event) do
+  defp resolve(session, table, owner, event) do
     bindings = Map.get(Channel.Session.bindings(session), {owner.guid, event.type}, [])
 
     resolved =
@@ -146,7 +147,8 @@ defmodule Playwright.SDK.Channel.Response do
         end
       end)
 
-    Channel.Catalog.put(catalog, resolved.target)
+    catalog = Channel.Session.catalog(session)
+    Channel.Catalog.put(table, catalog, resolved.target)
 
     async_bindings = Map.get(Channel.Session.async_bindings(session), {owner.guid, event.type}, [])
 

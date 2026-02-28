@@ -9,7 +9,7 @@ defmodule Playwright.SDK.Channel.Catalog do
   import Playwright.SDK.Helpers.ErrorHandling
   alias Playwright.SDK.Channel
 
-  defstruct [:awaiting, :storage, watchers: []]
+  defstruct [:awaiting, :table, watchers: []]
 
   # module init
   # ---------------------------------------------------------------------------
@@ -40,19 +40,20 @@ defmodule Playwright.SDK.Channel.Catalog do
   @impl GenServer
   def init(root) do
     Process.flag(:trap_exit, true)
-
-    {:ok,
-     %__MODULE__{
-       awaiting: %{},
-       storage: %{"Root" => root}
-     }}
+    table = :ets.new(:catalog, [:set, :public, {:read_concurrency, true}])
+    :ets.insert(table, {"Root", root})
+    {:ok, %__MODULE__{awaiting: %{}, table: table, watchers: []}}
   end
 
   # module API
   # ---------------------------------------------------------------------------
 
-  def all(catalog) do
-    GenServer.call(catalog, :all)
+  def table(catalog) do
+    GenServer.call(catalog, :table)
+  end
+
+  def all(table) when is_reference(table) do
+    :ets.tab2list(table) |> Map.new()
   end
 
   @doc """
@@ -72,15 +73,21 @@ defmodule Playwright.SDK.Channel.Catalog do
 
   | key/name   | type   |            | description |
   | ---------- | ------ | ---------- | ----------- |
-  | `catalog`  | param  | `pid()`    | PID for the Catalog server |
+  | `table`    | param  | `reference()` | ETS table reference |
   | `guid`     | param  | `binary()` | GUID to look up |
   | `:timeout` | option | `float()`  | Maximum time to wait, in milliseconds. Defaults to `30_000` (30 seconds). |
   """
-  @spec get(pid(), binary(), map()) :: struct() | {:error, Channel.Error.t()}
-  def get(catalog, guid, options \\ %{}) do
-    with_timeout(options, fn timeout ->
-      GenServer.call(catalog, {:get, {:guid, guid}}, timeout)
-    end)
+  @spec get(:ets.table(), binary(), map()) :: struct() | {:error, Channel.Error.t()}
+  def get(table, guid, options \\ %{}) when is_reference(table) do
+    case :ets.lookup(table, guid) do
+      [{^guid, item}] ->
+        item
+
+      [] ->
+        with_timeout(options, fn timeout ->
+          GenServer.call(:ets.info(table, :owner), {:await, guid}, timeout)
+        end)
+    end
   end
 
   @doc """
@@ -121,14 +128,15 @@ defmodule Playwright.SDK.Channel.Catalog do
 
   ## Arguments
 
-  | key/name  | type   |         | description |
-  | --------- | ------ | ------- | ----------- |
-  | `catalog` | param  | `pid()` | PID for the Catalog server |
-  | `filter`  | param  | `map()` | Attributes for filtering |
+  | key/name  | type   |              | description |
+  | --------- | ------ | ------------ | ----------- |
+  | `table`   | param  | `reference()` | ETS table reference |
+  | `filter`  | param  | `map()`      | Attributes for filtering |
   """
-  @spec list(pid(), map()) :: [struct()]
-  def list(catalog, filter) do
-    GenServer.call(catalog, {:list, filter})
+  @spec list(:ets.table(), map()) :: [struct()]
+  def list(table, filter) when is_reference(table) do
+    items = :ets.tab2list(table) |> Enum.map(fn {_guid, item} -> item end)
+    filter(items, normalize_parent(filter), [])
   end
 
   @doc """
@@ -140,14 +148,17 @@ defmodule Playwright.SDK.Channel.Catalog do
 
   ## Arguments
 
-  | key/name   | type   |            | description |
-  | ---------- | ------ | ---------- | ----------- |
-  | `catalog`  | param  | `pid()`    | PID for the Catalog server |
-  | `resource` | param  | `struct()` | The resource to store |
+  | key/name   | type   |              | description |
+  | ---------- | ------ | ------------ | ----------- |
+  | `table`    | param  | `reference()` | ETS table reference |
+  | `catalog`  | param  | `pid()`      | PID for the Catalog server |
+  | `resource` | param  | `struct()`   | The resource to store |
   """
-  @spec put(pid(), struct()) :: struct()
-  def put(catalog, %{guid: guid} = resource) do
-    GenServer.call(catalog, {:put, {:guid, guid}, resource})
+  @spec put(:ets.table(), pid(), struct()) :: struct()
+  def put(table, catalog, %{guid: guid} = resource) when is_reference(table) do
+    :ets.insert(table, {guid, resource})
+    GenServer.cast(catalog, {:notify, guid, resource})
+    resource
   end
 
   @doc """
@@ -159,42 +170,48 @@ defmodule Playwright.SDK.Channel.Catalog do
 
   ## Arguments
 
-  | key/name   | type   |            | description |
-  | ---------- | ------ | ---------- | ----------- |
-  | `catalog`  | param  | `pid()`    | PID for the Catalog server |
-  | `guid`     | param  | `binary()` | GUID for the "parent" |
+  | key/name   | type   |              | description |
+  | ---------- | ------ | ------------ | ----------- |
+  | `table`    | param  | `reference()` | ETS table reference |
+  | `guid`     | param  | `binary()`   | GUID for the "parent" |
   """
-  @spec rm_r(pid(), binary(), pid() | nil) :: :ok
-  def rm_r(catalog, guid, session \\ nil) do
-    children = list(catalog, %{parent: get(catalog, guid)})
-    children |> Enum.each(fn child -> rm_r(catalog, child.guid, session) end)
+  @spec rm_r(:ets.table(), binary(), pid() | nil) :: :ok
+  def rm_r(table, guid, session \\ nil) when is_reference(table) do
+    case :ets.lookup(table, guid) do
+      [{^guid, item}] ->
+        children = list(table, %{parent: item})
+        Enum.each(children, fn child -> rm_r(table, child.guid, session) end)
+        if session, do: Channel.Session.unbind_all(session, guid)
+        rm(table, guid)
 
-    if session, do: Channel.Session.unbind_all(session, guid)
-    rm(catalog, guid)
+      [] ->
+        :ok
+    end
   end
 
   # @impl callbacks
   # ---------------------------------------------------------------------------
 
   @impl GenServer
-  def handle_call(:all, _, %{storage: storage} = state) do
-    {:reply, storage, state}
+  def handle_call(:table, _, %{table: table} = state) do
+    {:reply, table, state}
   end
 
   @impl GenServer
-  def handle_call({:get, {:guid, guid}}, from, %{awaiting: awaiting, storage: storage} = state) do
-    item = storage[guid]
-
-    if item do
-      {:reply, item, state}
-    else
-      {:noreply, %{state | awaiting: Map.put(awaiting, guid, from)}}
+  def handle_call({:await, guid}, from, %{awaiting: awaiting, table: table} = state) do
+    case :ets.lookup(table, guid) do
+      [{^guid, item}] -> {:reply, item, state}
+      [] -> {:noreply, %{state | awaiting: Map.put(awaiting, guid, from)}}
     end
   end
 
   @impl GenServer
-  def handle_call({:watch, guid, predicate}, from, %{storage: storage, watchers: watchers} = state) do
-    item = storage[guid]
+  def handle_call({:watch, guid, predicate}, from, %{table: table, watchers: watchers} = state) do
+    item =
+      case :ets.lookup(table, guid) do
+        [{^guid, found}] -> found
+        [] -> nil
+      end
 
     if item && predicate.(item) do
       {:reply, item, state}
@@ -204,24 +221,9 @@ defmodule Playwright.SDK.Channel.Catalog do
   end
 
   @impl GenServer
-  def handle_call({:list, filter}, _, %{storage: storage} = state) do
-    case filter(Map.values(storage), normalize_parent(filter), []) do
-      [] ->
-        {:reply, [], state}
-
-      result ->
-        {:reply, result, state}
-    end
-  end
-
-  @impl GenServer
-  def handle_call({:put, {:guid, guid}, item}, _, %{awaiting: awaiting, storage: storage, watchers: watchers} = state) do
+  def handle_cast({:notify, guid, item}, %{awaiting: awaiting, watchers: watchers} = state) do
     {caller, awaiting} = Map.pop(awaiting, guid)
-    storage = Map.put(storage, guid, item)
-
-    if caller do
-      GenServer.reply(caller, item)
-    end
+    if caller, do: GenServer.reply(caller, item)
 
     {matched, remaining} =
       Enum.split_with(watchers, fn {watcher_guid, predicate, _from} ->
@@ -232,13 +234,7 @@ defmodule Playwright.SDK.Channel.Catalog do
       GenServer.reply(from, item)
     end)
 
-    {:reply, item, %{state | awaiting: awaiting, storage: storage, watchers: remaining}}
-  end
-
-  @impl GenServer
-  def handle_call({:rm, guid}, _, %{storage: storage} = state) do
-    updated = Map.delete(storage, guid)
-    {:reply, :ok, %{state | storage: updated}}
+    {:noreply, %{state | awaiting: awaiting, watchers: remaining}}
   end
 
   @impl GenServer
@@ -298,7 +294,8 @@ defmodule Playwright.SDK.Channel.Catalog do
   defp normalize_parent(%{parent: parent} = filter) when is_binary(parent), do: filter
   defp normalize_parent(filter), do: filter
 
-  defp rm(catalog, guid) do
-    GenServer.call(catalog, {:rm, guid})
+  defp rm(table, guid) when is_reference(table) do
+    :ets.delete(table, guid)
+    :ok
   end
 end

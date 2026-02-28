@@ -70,6 +70,12 @@ defmodule Playwright.SDK.Channel.SessionTest do
       assert task_supervisor == expected_task_supervisor
     end
 
+    test "catalog_table returns the ETS table ref", %{page: page} do
+      table = Session.catalog_table(page.session)
+      assert is_reference(table)
+      assert :ets.info(table, :type) == :set
+    end
+
     @tag exclude: [:page]
     test "persistent_term entry is cleaned up on session close" do
       # Launch an independent session so we don't affect the shared browser

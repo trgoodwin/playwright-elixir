@@ -1550,9 +1550,9 @@ defmodule Playwright.Locator do
   defp find_page_for_frame(%Frame{} = frame) do
     alias Playwright.SDK.Channel.{Catalog, Session}
 
-    catalog = Session.catalog(frame.session)
+    table = Session.catalog_table(frame.session)
 
-    catalog
+    table
     |> Catalog.all()
     |> Map.values()
     |> Enum.find(fn

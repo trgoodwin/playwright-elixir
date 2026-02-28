@@ -15,8 +15,8 @@ defmodule Playwright.Route do
   def abort(route, error_code \\ "failed")
 
   def abort(%Route{session: session} = route, error_code) do
-    catalog = Channel.Session.catalog(session)
-    request = Channel.Catalog.get(catalog, route.request.guid)
+    table = Channel.Session.catalog_table(session)
+    request = Channel.Catalog.get(table, route.request.guid)
     Channel.post(session, {:guid, route.guid}, :abort, %{error_code: error_code, request_url: request.url})
     :ok
   end
@@ -29,8 +29,8 @@ defmodule Playwright.Route do
   # TODO: figure out what's up with `is_fallback`.
   def continue(%Route{session: session} = route, options) do
     # HACK to deal with changes in v1.33.0
-    catalog = Channel.Session.catalog(session)
-    request = Channel.Catalog.get(catalog, route.request.guid)
+    table = Channel.Session.catalog_table(session)
+    request = Channel.Catalog.get(table, route.request.guid)
     params = Map.merge(options, %{is_fallback: false, request_url: request.url})
     Channel.post(session, {:guid, route.guid}, :continue, params)
   end
@@ -41,8 +41,8 @@ defmodule Playwright.Route do
   def fallback(route, options \\ %{})
 
   def fallback(%Route{session: session} = route, options) do
-    catalog = Channel.Session.catalog(session)
-    request = Channel.Catalog.get(catalog, route.request.guid)
+    table = Channel.Session.catalog_table(session)
+    request = Channel.Catalog.get(table, route.request.guid)
     params = Map.merge(options, %{is_fallback: true, request_url: request.url})
     Channel.post(session, {:guid, route.guid}, :continue, params)
     :ok
@@ -54,8 +54,8 @@ defmodule Playwright.Route do
   def fetch(route, options \\ %{})
 
   def fetch(%Route{session: session} = route, options) do
-    catalog = Channel.Session.catalog(session)
-    request = Channel.Catalog.get(catalog, route.request.guid)
+    table = Channel.Session.catalog_table(session)
+    request = Channel.Catalog.get(table, route.request.guid)
 
     params = Map.merge(%{request_url: request.url}, options)
 
@@ -78,8 +78,8 @@ defmodule Playwright.Route do
     length = String.length(body)
 
     # HACK to deal with changes in v1.33.0
-    catalog = Channel.Session.catalog(session)
-    request = Channel.Catalog.get(catalog, route.request.guid)
+    table = Channel.Session.catalog_table(session)
+    request = Channel.Catalog.get(table, route.request.guid)
 
     params = %{
       body: body,
