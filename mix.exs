@@ -57,7 +57,8 @@ defmodule Playwright.MixProject do
       {:plug_cowboy, "~> 2.7", only: [:test]},
       {:recase, "~> 0.7"},
       {:uuid, "~> 1.1"},
-      {:httpoison, "~> 1.8", only: [:test]}
+      {:httpoison, "~> 1.8", only: [:test]},
+      {:benchee, "~> 1.3", only: :dev, runtime: false}
     ]
   end
 
